@@ -8,7 +8,7 @@ from .sql import sql_get_osm, sql_get_trip_geom
 from .osm import get_osm_prop
 
 
-def get_elevation_data(trip_id, osm_data, elevation_sampler, engine, first_sample_distance = 10, end_sample_distance = 100, brunnel_filter_length=10, interpolated = True, adjust_window_size = 12, std_thresh = 3, sub_factor = 3, clip = 20, smooth_window_size=301, poly_order=3, degrees=False):
+def get_elevation_data(trip_id, osm_data, elevation_sampler, engine, first_sample_distance = 10, end_sample_distance = 100, brunnel_filter_length=10, interpolated = True, adjust_window_size = 12, std_thresh = 3, sub_factor = 3, clip = 20, smooth_window_size=301, poly_order=3, degrees=False, smooth_after_resampling=True, window_size_2=5,poly_order_2=1, mode="nearest"):
     brunnels = get_osm_prop(osm_data, "brunnel", brunnel_filter_length=brunnel_filter_length)
     
     trip_geom = sql_get_trip_geom(trip_id, engine, elevation_sampler.dem.crs)
@@ -16,9 +16,17 @@ def get_elevation_data(trip_id, osm_data, elevation_sampler, engine, first_sampl
     x_coords, y_coords, distances, elevation = elevation_sampler.elevation_profile(trip_geom, distance=first_sample_distance, interpolated = interpolated)
     
     ele_brunnel = elevation_sampler.interpolate_brunnels(elevation, distances, brunnels, first_sample_distance)
+
+    ele_adjusted = elevation_sampler.adjust_forest_height(ele_brunnel,window_size = adjust_window_size, std_thresh = std_thresh, sub_factor = sub_factor, clip = clip)
     
-    ele_adjusted =  elevation_sampler.smooth_ele(elevation_sampler.adjust_forest_height(ele_brunnel,window_size = adjust_window_size, std_thresh = std_thresh, sub_factor = sub_factor, clip = clip), window_size=smooth_window_size, poly_order=poly_order)
-    distances_100, elevation_100 = elevation_sampler.resample_ele(ele_adjusted,distances,end_sample_distance)
+    ele_smoothed =  elevation_sampler.smooth_ele(ele_adjusted, window_size=smooth_window_size, poly_order=poly_order, mode=mode)
+
+    distances_100, elevation_100 = elevation_sampler.resample_ele(ele_smoothed,distances,end_sample_distance)
+
+    if smooth_after_resampling:
+        elevation_100 = elevation_sampler.smooth_ele(elevation_100, window_size=window_size_2, poly_order=poly_order_2,mode=mode)
+
+
     incl_100 = elevation_sampler.ele_to_incl(elevation_100, distances_100, degrees=degrees)
     distances_100 = distances_100[:-1]
     
