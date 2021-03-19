@@ -3,7 +3,7 @@ import pandas as pd
 from shapely.geometry import Point
 from shapely.geometry import LineString
 
-def filter_overlapping_osm(osm_data, trip_geom):
+def filter_overlapping_osm(osm_data, trip_geom, filter=True):
     """
     Calculates overlapping segments along the trip geometry. Removes overlapping if they dont have status=active, or they are a service track.
     Adds start_point, end_point, end_point_distance, end_point_distance columns.
@@ -52,6 +52,9 @@ def filter_overlapping_osm(osm_data, trip_geom):
             overlapping += [i]
     overlapping = list(set(overlapping))
 
+    if not filter:
+        return osm_data.iloc[overlapping]
+
     # remove from overlapping where status not active
     osm_data = osm_data.drop(osm_data.iloc[overlapping][osm_data.iloc[overlapping]["status"]!="active"].index)
     # remove overlapping service tracks 
@@ -67,9 +70,13 @@ def get_osm_prop(osm_data, prop, brunnel_filter_length = 10, round_int = True):
     ----------
         
         osm_data : GeoDataFrame
+            Columns start_point_distance, end_point_distance, prop [brunnel, electrified, maxspeed]
+            brunnel: 'yes'|'no', electrified: 'yes'|'no'|'unknown', maxspeed: int|np.nan
+
+            unknown and nan values are discarded.
         prop : str
             The OSM property. Accepted Values are "brunnel", "electrified" or "maxspeed"
-            
+
     Returns
     -------
     
@@ -83,9 +90,10 @@ def get_osm_prop(osm_data, prop, brunnel_filter_length = 10, round_int = True):
         filter_bool = (osm_prop_data.bridge=='yes') | (osm_prop_data.tunnel == 'yes')
         osm_prop_data["brunnel"] = np.where(filter_bool, "yes", "no")
         #osm_prop_data = osm_prop_data[filter_bool]
-    elif prop == "maxspeed":  
-        # if maxspeed not specified take maxspeed forward
-        osm_prop_data["maxspeed"] = np.where(np.isnan(osm_prop_data["maxspeed"]), osm_prop_data["maxspeed_forward"], osm_prop_data["maxspeed"])
+    elif prop == "maxspeed":
+        if 'maxspeed_forward' in osm_prop_data.columns:
+            # if maxspeed not specified take maxspeed forward
+            osm_prop_data["maxspeed"] = np.where(np.isnan(osm_prop_data["maxspeed"]), osm_prop_data["maxspeed_forward"], osm_prop_data["maxspeed"])
         # filter nans
         osm_prop_data = osm_prop_data[~np.isnan(osm_prop_data.maxspeed)]
     elif prop == "electrified":
@@ -151,5 +159,6 @@ def get_osm_prop(osm_data, prop, brunnel_filter_length = 10, round_int = True):
         
         if prop == "maxspeed":
             props["maxspeed"] = np.rint(props["maxspeed"]).astype(int)
-        
+
+    props.reset_index(drop=True, inplace=True)
     return props
