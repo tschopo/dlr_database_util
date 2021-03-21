@@ -127,13 +127,15 @@ def sql_get_timetable(trip_id, engine, min_stop_duration=30, round_int=True):
 
     return time_table.trip_headsign.iloc[0], time_table[["dist", "stop_name", "stop_duration", "driving_time"]]
 
-def flip_trip(distances, parameter):
+def flip_trip(distances, parameter, invert_para = False):
     """
 
     Parameters
     ----------
     distances : Numpy Array
     parameter : Numpy Array
+    invert_para : bool
+        Take parameter * -1
 
     Returns
     -------
@@ -145,11 +147,14 @@ def flip_trip(distances, parameter):
     distances = distances[0] - distances
     parameter = parameter[::-1]
 
+    if invert_para:
+        parameter = parameter * -1
+
     return distances, parameter
 
 def create_umlauf(parameter_df, trip_count, parameter_column, start_dists_column="start_dist", flip_first=False):
     """
-    For the given distances and parameter arrays returns the computed "umlauf" arrays.
+    For the given distances and parameter arrays returns the computed "umlauf" arrays. 
 
     Parameters
     ----------
@@ -166,8 +171,12 @@ def create_umlauf(parameter_df, trip_count, parameter_column, start_dists_column
     distances = parameter_df[start_dists_column].values
     parameter = parameter_df[parameter_column].values
 
+    invert_para = False
+    if parameter_column == "incl":
+        invert_para = True
+
     if flip_first:
-        distances, parameter = flip_trip (distances, parameter)
+        distances, parameter = flip_trip (distances, parameter, invert_para=invert_para)
 
     res_dists = []
     res_para = []
@@ -180,12 +189,11 @@ def create_umlauf(parameter_df, trip_count, parameter_column, start_dists_column
 
         # at the end, flip the trip
         start_dist = distances[-1]
-        distances, parameter = flip_trip(distances, parameter)
 
+        distances, parameter = flip_trip(distances, parameter, invert_para=invert_para)
 
     res_dists = np.concatenate(res_dists, axis=None)
     res_para = np.concatenate(res_para, axis=None)
-
 
     data = {start_dists_column : res_dists, parameter_column : res_para}
     res = pd.DataFrame(data)
@@ -202,7 +210,6 @@ def trip_title_to_filename(title):
     filename = re.sub('[^a-z0-9_]+', '', filename)
 
     return filename
-
 
 def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclination):
     filename = trip_title_to_filename(trip_title)
