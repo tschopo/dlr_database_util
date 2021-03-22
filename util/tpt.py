@@ -11,8 +11,8 @@ def process_ele(elevation, distances, brunnels, first_sample_distance=10, end_sa
                 construct_brunnels=False, max_bridge_length=300,
                 max_tunnel_length=300, construct_brunnel_thresh=3, adjust_window_size=12, std_thresh=3, sub_factor=3,
                 clip=20, smooth_window_size=301, poly_order=3, degrees=False, smooth_after_resampling=True,
-                window_size_2=5, poly_order_2=1, mode="nearest", resample_first=True, output_all=False, adjust_forest_height=True):
-
+                window_size_2=5, poly_order_2=1, mode="nearest", resample_first=True, output_all=False,
+                adjust_forest_height=True, drop_last_incl_if_high=True, last_incl_thresh= 0, last_incl_dist=100):
     distances_10, elevation_10 = elevation, distances
 
     if resample_first:
@@ -28,7 +28,7 @@ def process_ele(elevation, distances, brunnels, first_sample_distance=10, end_sa
     ele_adjusted = ele_brunnel
     if adjust_forest_height:
         ele_adjusted = ElevationSampler.adjust_forest_height(ele_brunnel, window_size=adjust_window_size,
-                                                         std_thresh=std_thresh, sub_factor=sub_factor, clip=clip)
+                                                             std_thresh=std_thresh, sub_factor=sub_factor, clip=clip)
 
     ele_smoothed = ElevationSampler.smooth_ele(ele_adjusted, window_size=smooth_window_size, poly_order=poly_order,
                                                mode=mode)
@@ -41,7 +41,15 @@ def process_ele(elevation, distances, brunnels, first_sample_distance=10, end_sa
     if output_all:
         return distances_10, elevation_10, ele_brunnel, ele_adjusted, ele_smoothed, distances_100, elevation_100
 
+
     incl_100 = ElevationSampler.ele_to_incl(elevation_100, distances_100, degrees=degrees)
+
+    if drop_last_incl_if_high:
+        if incl_100[-1] > last_incl_thresh:
+            if distances_100[-1]-distances_100[-2] < last_incl_dist:
+                distances_100 = distances_100[:-1]
+                incl_100 = incl_100[:-1]
+
     distances_100 = distances_100[:-1]
 
     data = {"start_dist": distances_100, "incl": incl_100}
@@ -160,15 +168,21 @@ def flip_trip(end_dists, parameter, invert_para=False):
 
 
 def create_umlauf(parameter_df, trip_count, parameter_column, start_dists_column="start_dist",
-                  end_dists_column="end_dist", flip_first=False, drop_dups=False):
+                  end_dists_column="end_dist", flip_first=False, drop_dups=True):
     """
     For the given distances and parameter arrays returns the computed "umlauf" arrays. 
 
     Parameters
     ----------
 
+    parameter_df : pandas dataframe
+        with parameter_column, start_dists_column and end_dists_column
     trip_count : int
+    parameter_column : str
+    start_dists_column : str
+    end_dists_column : str
     flip_first : bool
+    drop_dups : bool
 
     Returns
     -------
@@ -333,7 +347,8 @@ def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclinat
     current_row += 1
 
     # maxspeed
-    maxspeed[["start_dist", "maxspeed"]].to_excel(writer, sheet_name=default_params['sheet1'], index=False, header=False,
+    maxspeed[["start_dist", "maxspeed"]].to_excel(writer, sheet_name=default_params['sheet1'], index=False,
+                                                  header=False,
                                                   startrow=current_row)
 
     current_row += maxspeed.shape[0]
