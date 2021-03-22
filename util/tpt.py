@@ -235,7 +235,48 @@ def trip_title_to_filename(title):
     return filename
 
 
-def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclination):
+def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclination, params={}):
+    """
+
+    Parameters
+    ----------
+    trip_title
+    timetable
+    electrification
+    maxspeed
+    inclination
+    constants : dict
+        sheet1 : "Timetable and limits",
+        sheet2 : "Gradients and curves",
+        sheet3 : "TPT requirements",
+        accelerationLimits : 1.2
+        decelerationLimits : 0.9
+        gravity_acceleration : 9.81
+        time_overhead : 0.05
+        gradient_interpolation_binary : 0
+        effort_in_curve : 8
+        resistances_kp : "normal"
+
+    Returns
+    -------
+
+    """
+
+    default_params = {
+        "sheet1": "Timetable and limits",
+        "sheet2": "Gradients and curves",
+        "sheet3": "TPT requirements",
+        "accelerationLimits": 1.2,
+        "decelerationLimits": 0.9,
+        "gravity_acceleration": 9.81,
+        "time_overhead": 0.05,
+        "gradient_interpolation_binary": 0,
+        "effort_in_curve": 8,
+        "resistances_kp": "normal"
+    }
+
+    default_params.update(params)
+
     filename = trip_title_to_filename(trip_title)
 
     writer = pd.ExcelWriter(filename + '.xlsx', engine='xlsxwriter')
@@ -243,10 +284,10 @@ def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclinat
     # we first need to write a dataframe, to get the sheets later
 
     # timetable
-    timetable.to_excel(writer, sheet_name='Timetable and limits', index=False, header=False, startrow=3)
+    timetable.to_excel(writer, sheet_name=default_params['sheet1'], index=False, header=False, startrow=3)
 
     workbook = writer.book
-    worksheet = writer.sheets['Timetable and limits']
+    worksheet = writer.sheets[default_params['sheet1']]
 
     # timetable end
     current_row = timetable.shape[0] + 3
@@ -272,7 +313,7 @@ def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclinat
     current_row += 1
 
     # electrification
-    electrification[["start_dist", "electrified"]].to_excel(writer, sheet_name='Timetable and limits', index=False,
+    electrification[["start_dist", "electrified"]].to_excel(writer, sheet_name=default_params['sheet1'], index=False,
                                                             header=False, startrow=current_row)
 
     current_row += electrification.shape[0]
@@ -290,7 +331,7 @@ def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclinat
     current_row += 1
 
     # maxspeed
-    maxspeed[["start_dist", "maxspeed"]].to_excel(writer, sheet_name='Timetable and limits', index=False, header=False,
+    maxspeed[["start_dist", "maxspeed"]].to_excel(writer, sheet_name=default_params['sheet1'], index=False, header=False,
                                                   startrow=current_row)
 
     current_row += maxspeed.shape[0]
@@ -307,7 +348,7 @@ def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclinat
     current_row += 1
 
     worksheet.write(current_row, 0, 0)
-    worksheet.write(current_row, 1, 1.2)
+    worksheet.write(current_row, 1, default_params['accelerationLimits'])
     current_row += 1
 
     worksheet.write(current_row, 0, "]end")
@@ -320,7 +361,7 @@ def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclinat
     current_row += 1
 
     worksheet.write(current_row, 0, 0)
-    worksheet.write(current_row, 1, 0.9)
+    worksheet.write(current_row, 1, default_params['decelerationLimits'])
     current_row += 1
 
     worksheet.write(current_row, 0, "]end")
@@ -329,13 +370,13 @@ def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclinat
     worksheet.set_column(0, 3, 25)
 
     # new worksheet
-    inclination.to_excel(writer, sheet_name='Gradients and curves', index=False, header=False, startrow=3)
+    inclination.to_excel(writer, sheet_name=default_params['sheet2'], index=False, header=False, startrow=3)
 
-    worksheet = writer.sheets['Gradients and curves']
+    worksheet = writer.sheets[default_params['sheet2']]
 
     # title
     worksheet.write('A1', "]gravity_acceleration(m/s2)")
-    worksheet.write('B1', 9.81)
+    worksheet.write('B1', default_params['gravity_acceleration'])
 
     # inclination header
     worksheet.write(2, 0, "]gradients")
@@ -358,21 +399,21 @@ def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclinat
     # column width
     worksheet.set_column(0, 3, 25)
 
-    worksheet = workbook.add_worksheet("TPT requirements")
+    worksheet = workbook.add_worksheet(default_params['sheet3'])
 
     worksheet.write('A1', "]time_overhead")
-    worksheet.write('B1', 0.05)
+    worksheet.write('B1', default_params['time_overhead'])
 
     worksheet.write('A4', "]gradient_interpolation_binary")
-    worksheet.write('B4', 0)
+    worksheet.write('B4', default_params['gradient_interpolation_binary'])
 
     worksheet.write('A6', "]effort_in_curve(N.m/kg)")
-    worksheet.write('B6', 8)
+    worksheet.write('B6', default_params['effort_in_curve'])
 
     worksheet.write('A9', "]resistances_kp(m)_name(word)")
 
     worksheet.write('A10', 0)
-    worksheet.write('B10', "normal")
+    worksheet.write('B10', default_params['resistances_kp'])
 
     worksheet.write('A11', "]end")
 
