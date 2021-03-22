@@ -11,7 +11,8 @@ def process_ele(elevation, distances, brunnels, first_sample_distance=10, end_sa
                 construct_brunnels=False, max_bridge_length=300,
                 max_tunnel_length=300, construct_brunnel_thresh=3, adjust_window_size=12, std_thresh=3, sub_factor=3,
                 clip=20, smooth_window_size=301, poly_order=3, degrees=False, smooth_after_resampling=True,
-                window_size_2=5, poly_order_2=1, mode="nearest", resample_first=True, output_all=False):
+                window_size_2=5, poly_order_2=1, mode="nearest", resample_first=True, output_all=False, adjust_forest_height=True):
+
     distances_10, elevation_10 = elevation, distances
 
     if resample_first:
@@ -24,8 +25,9 @@ def process_ele(elevation, distances, brunnels, first_sample_distance=10, end_sa
                                                         max_bridge_length=max_bridge_length,
                                                         max_tunnel_length=max_tunnel_length,
                                                         construct_brunnel_thresh=construct_brunnel_thresh)
-
-    ele_adjusted = ElevationSampler.adjust_forest_height(ele_brunnel, window_size=adjust_window_size,
+    ele_adjusted = ele_brunnel
+    if adjust_forest_height:
+        ele_adjusted = ElevationSampler.adjust_forest_height(ele_brunnel, window_size=adjust_window_size,
                                                          std_thresh=std_thresh, sub_factor=sub_factor, clip=clip)
 
     ele_smoothed = ElevationSampler.smooth_ele(ele_adjusted, window_size=smooth_window_size, poly_order=poly_order,
