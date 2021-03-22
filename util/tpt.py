@@ -6,6 +6,7 @@ from .osm import get_osm_prop
 from .sql import sql_get_osm, sql_get_trip_geom
 from ElevationSampler import *
 
+
 def process_ele(elevation, distances, brunnels, first_sample_distance=10, end_sample_distance=100,
                 construct_brunnels=False, max_bridge_length=300,
                 max_tunnel_length=300, construct_brunnel_thresh=3, adjust_window_size=12, std_thresh=3, sub_factor=3,
@@ -18,23 +19,23 @@ def process_ele(elevation, distances, brunnels, first_sample_distance=10, end_sa
         distances_10, elevation_10 = ElevationSampler.resample_ele(elevation, distances, first_sample_distance)
 
     ele_brunnel = ElevationSampler.interpolate_brunnels(elevation_10, distances_10, brunnels,
-                                                         distance_delta=first_sample_distance,
-                                                         construct_brunnels=construct_brunnels,
-                                                         max_bridge_length=max_bridge_length,
-                                                         max_tunnel_length=max_tunnel_length,
-                                                         construct_brunnel_thresh=construct_brunnel_thresh)
+                                                        distance_delta=first_sample_distance,
+                                                        construct_brunnels=construct_brunnels,
+                                                        max_bridge_length=max_bridge_length,
+                                                        max_tunnel_length=max_tunnel_length,
+                                                        construct_brunnel_thresh=construct_brunnel_thresh)
 
     ele_adjusted = ElevationSampler.adjust_forest_height(ele_brunnel, window_size=adjust_window_size,
-                                                          std_thresh=std_thresh, sub_factor=sub_factor, clip=clip)
+                                                         std_thresh=std_thresh, sub_factor=sub_factor, clip=clip)
 
     ele_smoothed = ElevationSampler.smooth_ele(ele_adjusted, window_size=smooth_window_size, poly_order=poly_order,
-                                                mode=mode)
+                                               mode=mode)
 
     distances_100, elevation_100 = ElevationSampler.resample_ele(ele_smoothed, distances_10, end_sample_distance)
 
     if smooth_after_resampling:
         elevation_100 = ElevationSampler.smooth_ele(elevation_100, window_size=window_size_2, poly_order=poly_order_2,
-                                                     mode=mode)
+                                                    mode=mode)
     if output_all:
         return distances_10, elevation_10, ele_brunnel, ele_adjusted, ele_smoothed, distances_100, elevation_100
 
@@ -127,12 +128,14 @@ def sql_get_timetable(trip_id, engine, min_stop_duration=30, round_int=True):
 
     return time_table.trip_headsign.iloc[0], time_table[["dist", "stop_name", "stop_duration", "driving_time"]]
 
-def flip_trip(distances, parameter, invert_para = False):
+
+def flip_trip(end_dists, parameter, invert_para=False):
     """
+    Calculate the distances and parameter from the other direction.
 
     Parameters
     ----------
-    distances : Numpy Array
+    end_dists : Numpy Array
     parameter : Numpy Array
     invert_para : bool
         Take parameter * -1
@@ -143,7 +146,8 @@ def flip_trip(distances, parameter, invert_para = False):
         The fliped distances and parameter
     """
 
-    distances = distances[::-1]
+    # calculate start dists from the end distances
+    distances = end_dists[::-1]
     distances = distances[0] - distances
     parameter = parameter[::-1]
 
@@ -152,7 +156,9 @@ def flip_trip(distances, parameter, invert_para = False):
 
     return distances, parameter
 
-def create_umlauf(parameter_df, trip_count, parameter_column, start_dists_column="start_dist", flip_first=False):
+
+def create_umlauf(parameter_df, trip_count, parameter_column, start_dists_column="start_dist",
+                  end_dists_column="end_dist", flip_first=False, drop_dups=False):
     """
     For the given distances and parameter arrays returns the computed "umlauf" arrays. 
 
@@ -168,37 +174,54 @@ def create_umlauf(parameter_df, trip_count, parameter_column, start_dists_column
         The computed umlauf. Dataframe with start_dists_column and parameter columns.
     """
 
-    distances = parameter_df[start_dists_column].values
-    parameter = parameter_df[parameter_column].values
-
     invert_para = False
+
     if parameter_column == "incl":
         invert_para = True
+        end_dists_column = start_dists_column
+
+    distances = parameter_df[start_dists_column].values
+
+    end_dists = parameter_df[end_dists_column].values
+    parameter = parameter_df[parameter_column].values
+
+    trip_length = end_dists[-1]
 
     if flip_first:
-        distances, parameter = flip_trip (distances, parameter, invert_para=invert_para)
+        distances, parameter = flip_trip(end_dists, parameter, invert_para=invert_para)
 
     res_dists = []
     res_para = []
     start_dist = 0
     for _ in range(trip_count):
-
         distances = distances + start_dist
         res_dists.append(distances)
         res_para.append(parameter)
 
-        # at the end, flip the trip
-        start_dist = distances[-1]
+        # add trip length
+        start_dist += trip_length
 
-        distances, parameter = flip_trip(distances, parameter, invert_para=invert_para)
+        # flip the trip
+        distances, parameter = flip_trip(end_dists, parameter, invert_para=invert_para)
 
     res_dists = np.concatenate(res_dists, axis=None)
     res_para = np.concatenate(res_para, axis=None)
 
-    data = {start_dists_column : res_dists, parameter_column : res_para}
+    data = {start_dists_column: res_dists, parameter_column: res_para}
     res = pd.DataFrame(data)
-    res = res.drop_duplicates(ignore_index=True)
+
+    if drop_dups:
+        res = res.drop_duplicates(ignore_index=True)
+
+        drop_idx = []
+        for i in range(1, res.shape[0]):
+            if (res.iloc[i][parameter_column]) == (res.iloc[i - 1][parameter_column]):
+                drop_idx.append(i)
+        res = res.drop(drop_idx)
+        res = res.reset_index(drop=True)
+
     return res
+
 
 def trip_title_to_filename(title):
     special_char_map = {ord('ä'): 'ae', ord('ü'): 'ue', ord('ö'): 'oe', ord('ß'): 'ss', ord('('): '', ord(')'): '',
@@ -210,6 +233,7 @@ def trip_title_to_filename(title):
     filename = re.sub('[^a-z0-9_]+', '', filename)
 
     return filename
+
 
 def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclination):
     filename = trip_title_to_filename(trip_title)
