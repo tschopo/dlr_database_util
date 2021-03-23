@@ -12,7 +12,7 @@ def process_ele(elevation, distances, brunnels, first_sample_distance=10, end_sa
                 max_tunnel_length=300, construct_brunnel_thresh=3, adjust_window_size=12, std_thresh=3, sub_factor=3,
                 clip=20, smooth_window_size=301, poly_order=3, degrees=False, smooth_after_resampling=True,
                 window_size_2=5, poly_order_2=1, mode="nearest", resample_first=True, output_all=False,
-                adjust_forest_height=True, drop_last_incl_if_high=True, last_incl_thresh= 0, last_incl_dist=100):
+                adjust_forest_height=True, drop_last_incl_if_high=True, last_incl_thresh=0, last_incl_dist=100):
     distances_10, elevation_10 = elevation, distances
 
     if resample_first:
@@ -41,14 +41,13 @@ def process_ele(elevation, distances, brunnels, first_sample_distance=10, end_sa
     if output_all:
         return distances_10, elevation_10, ele_brunnel, ele_adjusted, ele_smoothed, distances_100, elevation_100
 
-
     incl_100 = ElevationSampler.ele_to_incl(elevation_100, distances_100, degrees=degrees)
 
-    if drop_last_incl_if_high:
-        if incl_100[-1] > last_incl_thresh:
-            if distances_100[-1]-distances_100[-2] < last_incl_dist:
-                distances_100 = distances_100[:-1]
-                incl_100 = incl_100[:-1]
+    # set last incl to 0 in some cases
+    if drop_last_incl_if_high \
+            and incl_100[-1] > last_incl_thresh \
+            and distances_100[-1] - distances_100[-2] < last_incl_dist:
+        incl_100[-1] = 0
 
     distances_100 = distances_100[:-1]
 
@@ -167,10 +166,30 @@ def flip_trip(end_dists, parameter, invert_para=False):
     return distances, parameter
 
 
+def calc_end_dists(start_dists, trip_length):
+    """
+
+    Parameters
+    ----------
+    start_dists : 1d numpy array of floats
+    trip_length : float
+
+    Returns
+    -------
+        1d numpy array of floats
+            The end distances
+    """
+    # end dist is always the start dist of next element. last element end dist is trip length
+    end_dists = start_dists[1:].copy()
+    end_dists = np.append(end_dists, trip_length)
+
+    return end_dists
+
+
 def create_umlauf(parameter_df, trip_count, parameter_column, start_dists_column="start_dist",
                   end_dists_column="end_dist", flip_first=False, drop_dups=True):
     """
-    For the given distances and parameter arrays returns the computed "umlauf" arrays. 
+    For the given distances and parameter arrays returns the computed "umlauf" arrays.
 
     Parameters
     ----------
@@ -194,7 +213,8 @@ def create_umlauf(parameter_df, trip_count, parameter_column, start_dists_column
 
     if parameter_column == "incl":
         invert_para = True
-        end_dists_column = start_dists_column
+        if end_dists_column not in parameter_df.columns:
+            end_dists_column = start_dists_column
 
     distances = parameter_df[start_dists_column].values
 

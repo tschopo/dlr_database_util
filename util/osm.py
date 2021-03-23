@@ -74,6 +74,9 @@ def get_osm_prop(osm_data, prop, brunnel_filter_length = 10, round_int = True):
             brunnel: 'yes'|'no', electrified: 'yes'|'no'|'unknown', maxspeed: int|np.nan
 
             unknown and nan values are discarded.
+
+            For electrified and maxspeed the last end_point_distance must be the trip length.
+
         prop : str
             The OSM property. Accepted Values are "brunnel", "electrified" or "maxspeed"
 
