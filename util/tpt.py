@@ -138,7 +138,7 @@ def sql_get_timetable(trip_id, engine, min_stop_duration=30, round_int=True):
     return time_table.trip_headsign.iloc[0], time_table[["dist", "stop_name", "stop_duration", "driving_time"]]
 
 
-def flip_trip(end_dists, parameter, invert_para=False):
+def flip_trip(start_dists, end_dists, parameter, invert_para=False):
     """
     Calculate the distances and parameter from the other direction.
 
@@ -154,16 +154,21 @@ def flip_trip(end_dists, parameter, invert_para=False):
     Numpy Array
         The fliped distances and parameter
     """
+    trip_length = end_dists[-1]
 
     # calculate start dists from the end distances
-    distances = end_dists[::-1]
-    distances = distances[0] - distances
+    new_start_dists = end_dists[::-1]
+    new_start_dists = trip_length - new_start_dists
+
+    new_end_dists = start_dists[::-1]
+    new_end_dists = trip_length - new_end_dists
+
     parameter = parameter[::-1]
 
     if invert_para:
         parameter = parameter * -1
 
-    return distances, parameter
+    return new_start_dists, new_end_dists, parameter
 
 
 def calc_end_dists(start_dists, trip_length):
@@ -258,6 +263,77 @@ def create_umlauf(parameter_df, trip_count, parameter_column, start_dists_column
 
     return res
 
+def create_umlauf2(parameter_df, trip_count, parameter_column, start_dists_column="start_dist",
+                  end_dists_column="end_dist", flip_first=False, drop_dups=True):
+    """
+    For the given distances and parameter arrays returns the computed "umlauf" arrays.
+
+    Parameters
+    ----------
+
+    parameter_df : pandas dataframe
+        with parameter_column, start_dists_column and end_dists_column
+    trip_count : int
+    parameter_column : str
+    start_dists_column : str
+    end_dists_column : str
+    flip_first : bool
+    drop_dups : bool
+
+    Returns
+    -------
+    pandas DataFrame
+        The computed umlauf. Dataframe with start_dists_column and parameter columns.
+    """
+
+    invert_para = False
+
+    if parameter_column == "incl":
+        invert_para = True
+        if end_dists_column not in parameter_df.columns:
+            end_dists_column = start_dists_column
+
+    start_dists = parameter_df[start_dists_column].values
+    end_dists = parameter_df[end_dists_column].values
+    parameter = parameter_df[parameter_column].values
+
+    trip_length = end_dists[-1]
+
+    if flip_first:
+        start_dists, end_dists, parameter = flip_trip(start_dists, end_dists, parameter, invert_para=invert_para)
+
+    res_dists = []
+    res_para = []
+
+    start_dist = 0
+    for _ in range(trip_count):
+        distances = start_dists + start_dist
+        res_dists.append(distances)
+        res_para.append(parameter)
+
+        # add trip length
+        start_dist += trip_length
+
+        # flip the trip
+        start_dists, end_dists, parameter = flip_trip(start_dists, end_dists, parameter, invert_para=invert_para)
+
+    res_dists = np.concatenate(res_dists, axis=None)
+    res_para = np.concatenate(res_para, axis=None)
+
+    data = {start_dists_column: res_dists, parameter_column: res_para}
+    res = pd.DataFrame(data)
+
+    if drop_dups:
+        res = res.drop_duplicates(ignore_index=True)
+
+        drop_idx = []
+        for i in range(1, res.shape[0]):
+            if (res.iloc[i][parameter_column]) == (res.iloc[i - 1][parameter_column]):
+                drop_idx.append(i)
+        res = res.drop(drop_idx)
+        res = res.reset_index(drop=True)
+
+    return res
 
 def trip_title_to_filename(title):
     special_char_map = {ord('ä'): 'ae', ord('ü'): 'ue', ord('ö'): 'oe', ord('ß'): 'ss', ord('('): '', ord(')'): '',
