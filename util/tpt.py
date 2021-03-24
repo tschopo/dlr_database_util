@@ -8,12 +8,13 @@ from ElevationSampler import *
 
 
 def process_ele(elevation, distances, brunnels, first_sample_distance=10, end_sample_distance=100,
-                construct_brunnels=False, max_bridge_length=300,
-                max_tunnel_length=300, construct_brunnel_thresh=3, adjust_window_size=12, std_thresh=3, sub_factor=3,
+                construct_brunnels=False, max_brunnel_length=300,
+                construct_brunnel_thresh=3, diff_kernel_dist=3, adjust_window_size=12, std_thresh=3, sub_factor=3,
                 clip=20, smooth_window_size=301, poly_order=3, degrees=False, smooth_after_resampling=True,
                 window_size_2=5, poly_order_2=1, mode="nearest", resample_first=True, output_all=False,
-                adjust_forest_height=True, drop_last_incl_if_high=True, last_incl_thresh=0, last_incl_dist=100):
-    distances_10, elevation_10 = elevation, distances
+                adjust_forest_height=True, adjust_method="minimum", drop_last_incl_if_high=True, last_incl_thresh=0,
+                last_incl_dist=100):
+    distances_10, elevation_10 = np.array(distances), np.array(elevation)
 
     if resample_first:
         # we need evenly spaced points for brunnels
@@ -22,12 +23,14 @@ def process_ele(elevation, distances, brunnels, first_sample_distance=10, end_sa
     ele_brunnel = ElevationSampler.interpolate_brunnels(elevation_10, distances_10, brunnels,
                                                         distance_delta=first_sample_distance,
                                                         construct_brunnels=construct_brunnels,
-                                                        max_bridge_length=max_bridge_length,
-                                                        max_tunnel_length=max_tunnel_length,
-                                                        construct_brunnel_thresh=construct_brunnel_thresh)
+                                                        max_brunnel_length=max_brunnel_length,
+                                                        construct_brunnel_thresh=construct_brunnel_thresh,
+                                                        diff_kernel_dist=diff_kernel_dist
+                                                        )
     ele_adjusted = ele_brunnel
     if adjust_forest_height:
-        ele_adjusted = ElevationSampler.adjust_forest_height(ele_brunnel, window_size=adjust_window_size,
+        ele_adjusted = ElevationSampler.adjust_forest_height(ele_brunnel, distances_10, method=adjust_method,
+                                                             window_size=adjust_window_size,
                                                              std_thresh=std_thresh, sub_factor=sub_factor, clip=clip)
 
     ele_smoothed = ElevationSampler.smooth_ele(ele_adjusted, window_size=smooth_window_size, poly_order=poly_order,
@@ -57,8 +60,8 @@ def process_ele(elevation, distances, brunnels, first_sample_distance=10, end_sa
 
 
 def sql_get_inclination(trip_id, osm_data, elevation_sampler, engine, first_sample_distance=10, end_sample_distance=100,
-                        brunnel_filter_length=10, interpolated=True, construct_brunnels=True, max_bridge_length=300,
-                        max_tunnel_length=300, construct_brunnel_thresh=3, adjust_window_size=12, std_thresh=3,
+                        brunnel_filter_length=10, interpolated=True, construct_brunnels=True, max_brunnel_length=300,
+                        construct_brunnel_thresh=3, diff_kernel_dist=3, adjust_window_size=12, std_thresh=3,
                         sub_factor=3,
                         clip=20, smooth_window_size=301, poly_order=3, degrees=False, smooth_after_resampling=True,
                         window_size_2=5, poly_order_2=1, mode="nearest", output_all=False):
@@ -72,8 +75,8 @@ def sql_get_inclination(trip_id, osm_data, elevation_sampler, engine, first_samp
 
     return process_ele(elevation, distances, brunnels, first_sample_distance=first_sample_distance,
                        end_sample_distance=end_sample_distance,
-                       construct_brunnels=construct_brunnels, max_bridge_length=max_bridge_length,
-                       max_tunnel_length=max_tunnel_length, construct_brunnel_thresh=construct_brunnel_thresh,
+                       construct_brunnels=construct_brunnels, max_brunnel_length=max_brunnel_length,
+                       construct_brunnel_thresh=construct_brunnel_thresh, diff_kernel_dist=diff_kernel_dist,
                        adjust_window_size=adjust_window_size, std_thresh=std_thresh, sub_factor=sub_factor,
                        clip=clip, smooth_window_size=smooth_window_size, poly_order=poly_order, degrees=degrees,
                        smooth_after_resampling=smooth_after_resampling,
@@ -144,6 +147,7 @@ def flip_trip(start_dists, end_dists, parameter, invert_para=False):
 
     Parameters
     ----------
+    start_dists : Numpy Array
     end_dists : Numpy Array
     parameter : Numpy Array
     invert_para : bool
@@ -189,6 +193,7 @@ def calc_end_dists(start_dists, trip_length):
     end_dists = np.append(end_dists, trip_length)
 
     return end_dists
+
 
 def create_umlauf(parameter_df, trip_count, parameter_column, start_dists_column="start_dist",
                   end_dists_column="end_dist", flip_first=False, drop_dups=True):
@@ -262,6 +267,7 @@ def create_umlauf(parameter_df, trip_count, parameter_column, start_dists_column
 
     return res
 
+
 def trip_title_to_filename(title):
     special_char_map = {ord('ä'): 'ae', ord('ü'): 'ue', ord('ö'): 'oe', ord('ß'): 'ss', ord('('): '', ord(')'): '',
                         ord(' '): '_'}
@@ -274,7 +280,7 @@ def trip_title_to_filename(title):
     return filename
 
 
-def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclination, params={}):
+def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclination, params=None):
     """
 
     Parameters
@@ -284,7 +290,7 @@ def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclinat
     electrification
     maxspeed
     inclination
-    constants : dict
+    params : dict
         sheet1 : "Timetable and limits",
         sheet2 : "Gradients and curves",
         sheet3 : "TPT requirements",
@@ -314,7 +320,8 @@ def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclinat
         "resistances_kp": "normal"
     }
 
-    default_params.update(params)
+    if params is not None:
+        default_params.update(params)
 
     filename = trip_title_to_filename(trip_title)
 
