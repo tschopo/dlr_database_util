@@ -1,147 +1,104 @@
 import re
+from typing import Tuple, Dict, Optional
 import numpy as np
 import pandas as pd
-from sqlalchemy import text
-from .osm import get_osm_prop
-from .sql import sql_get_osm, sql_get_trip_geom
 from ElevationSampler import *
+from numpy import ndarray
+from pandas import DataFrame
 
 
-def process_ele(elevation, distances, brunnels, first_sample_distance=10, end_sample_distance=100,
-                construct_brunnels=False, max_brunnel_length=300,
-                construct_brunnel_thresh=3, diff_kernel_dist=3, adjust_window_size=12, std_thresh=3, sub_factor=3,
-                clip=20, smooth_window_size=301, poly_order=3, degrees=False, smooth_after_resampling=True,
-                window_size_2=5, poly_order_2=1, mode="nearest", resample_first=True, output_all=False,
-                adjust_forest_height=True, adjust_method="minimum", drop_last_incl_if_high=True, last_incl_thresh=0,
-                last_incl_dist=100):
-    distances_10, elevation_10 = np.array(distances), np.array(elevation)
+def process_ele(elevation: ndarray, distances: ndarray, brunnels: DataFrame, first_sample_distance: float = 10.0,
+                end_sample_distance: float = 100., construct_brunnels: bool = True,
+                max_brunnel_length: float = 300., construct_brunnel_thresh: float = 5., diff_kernel_dist: int = 10,
+                adjust_window_size: int = 12, std_thresh: float = 3., sub_factor: float = 2., clip: float = 20,
+                smooth_window_size: int = 501, poly_order: int = 3, degrees: bool = False,
+                smooth_after_resampling: bool = True, window_size_2: int = 21, poly_order_2: int = 1,
+                mode: str = "nearest", adjust_forest_height: bool = True, adjust_method: str = "minimum",
+                minimum_loops: int = 1, double_adjust: bool = True, drop_last_incl_if_high: bool = True,
+                last_incl_thresh: float = 10., last_incl_dist: float = 100.) -> Tuple[DataFrame, DataFrame, DataFrame]:
 
-    if resample_first:
-        # we need evenly spaced points for brunnels
-        distances_10, elevation_10 = ElevationSampler.resample_ele(elevation, distances, first_sample_distance)
+    distances, elevation = np.array(distances), np.array(elevation)
 
-    ele_brunnel = ElevationSampler.interpolate_brunnels(elevation_10, distances_10, brunnels,
+    # first_resample so that equidistant sample points at first_sample_distance apart
+    distances_10, elevation_10 = ElevationSampler.resample_ele(elevation, distances, first_sample_distance)
+    ele_pipe = elevation_10.copy()
+
+    # then interpolate the brunnels
+    ele_brunnel = ElevationSampler.interpolate_brunnels(ele_pipe, distances_10, brunnels,
                                                         distance_delta=first_sample_distance,
                                                         construct_brunnels=construct_brunnels,
                                                         max_brunnel_length=max_brunnel_length,
                                                         construct_brunnel_thresh=construct_brunnel_thresh,
                                                         diff_kernel_dist=diff_kernel_dist
                                                         )
+    ele_pipe = ele_brunnel.copy()
+
+    # then adjust the forest height
     ele_adjusted = ele_brunnel
     if adjust_forest_height:
-        ele_adjusted = ElevationSampler.adjust_forest_height(ele_brunnel, distances_10, method=adjust_method,
+        ele_adjusted = ElevationSampler.adjust_forest_height(ele_pipe, distances_10, method=adjust_method,
+                                                             window_size=adjust_window_size,
+                                                             std_thresh=std_thresh, sub_factor=sub_factor, clip=clip,
+                                                             minimum_loops=minimum_loops)
+        ele_pipe = ele_adjusted.copy()
+
+    # then adjust the forest height again with method variance
+    if double_adjust:
+        ele_adjusted = ElevationSampler.adjust_forest_height(ele_pipe, method="variance",
                                                              window_size=adjust_window_size,
                                                              std_thresh=std_thresh, sub_factor=sub_factor, clip=clip)
+        ele_pipe = ele_adjusted.copy()
 
-    ele_smoothed = ElevationSampler.smooth_ele(ele_adjusted, window_size=smooth_window_size, poly_order=poly_order,
+    # then smooth the elevation profile with high polyorder
+    ele_smoothed = ElevationSampler.smooth_ele(ele_pipe, window_size=smooth_window_size, poly_order=poly_order,
                                                mode=mode)
+    ele_pipe = ele_smoothed.copy()
 
-    distances_100, elevation_100 = ElevationSampler.resample_ele(ele_smoothed, distances_10, end_sample_distance)
+    # then resample the elevation to the end sample distance
+    distances_100, elevation_100 = ElevationSampler.resample_ele(ele_pipe, distances_10, end_sample_distance)
 
+    # then smooth again with averaging smoothing method
     if smooth_after_resampling:
         elevation_100 = ElevationSampler.smooth_ele(elevation_100, window_size=window_size_2, poly_order=poly_order_2,
                                                     mode=mode)
-    if output_all:
-        return distances_10, elevation_10, ele_brunnel, ele_adjusted, ele_smoothed, distances_100, elevation_100
 
+    # then calculate the inclination
     incl_100 = ElevationSampler.ele_to_incl(elevation_100, distances_100, degrees=degrees)
 
     # set last incl to 0 in some cases
     if drop_last_incl_if_high \
-            and incl_100[-1] > last_incl_thresh \
+            and abs(incl_100[-1]) > last_incl_thresh \
             and distances_100[-1] - distances_100[-2] < last_incl_dist:
         incl_100[-1] = 0
 
-    distances_100 = distances_100[:-1]
+    distances_incl = distances_100[:-1]
 
-    data = {"start_dist": distances_100, "incl": incl_100}
+    data = {
+        "distance": distances_10,
+        "elevation": elevation_10,
+        "ele_brunnel": ele_brunnel,
+        "ele_adjusted": ele_adjusted,
+        "ele_smoothed": ele_smoothed
+    }
+    elevation_pipeline_df: DataFrame = pd.DataFrame.from_dict(data)
 
-    return pd.DataFrame.from_dict(data)
+    data = {
+        "distance": distances_100,
+        "elevation": elevation_100
+    }
+    elevation_result_df: DataFrame = pd.DataFrame.from_dict(data)
 
+    data = {
+        "start_dist": distances_incl,
+        "incl": incl_100
+    }
+    inclination_df: DataFrame = pd.DataFrame.from_dict(data)
 
-def sql_get_inclination(trip_id, osm_data, elevation_sampler, engine, first_sample_distance=10, end_sample_distance=100,
-                        brunnel_filter_length=10, interpolated=True, construct_brunnels=True, max_brunnel_length=300,
-                        construct_brunnel_thresh=3, diff_kernel_dist=3, adjust_window_size=12, std_thresh=3,
-                        sub_factor=3,
-                        clip=20, smooth_window_size=301, poly_order=3, degrees=False, smooth_after_resampling=True,
-                        window_size_2=5, poly_order_2=1, mode="nearest", output_all=False):
-    brunnels = get_osm_prop(osm_data, "brunnel", brunnel_filter_length=brunnel_filter_length)
-
-    trip_geom = sql_get_trip_geom(trip_id, engine, elevation_sampler.dem.crs)
-
-    x_coords, y_coords, distances, elevation = elevation_sampler.elevation_profile(trip_geom,
-                                                                                   distance=first_sample_distance,
-                                                                                   interpolated=interpolated)
-
-    return process_ele(elevation, distances, brunnels, first_sample_distance=first_sample_distance,
-                       end_sample_distance=end_sample_distance,
-                       construct_brunnels=construct_brunnels, max_brunnel_length=max_brunnel_length,
-                       construct_brunnel_thresh=construct_brunnel_thresh, diff_kernel_dist=diff_kernel_dist,
-                       adjust_window_size=adjust_window_size, std_thresh=std_thresh, sub_factor=sub_factor,
-                       clip=clip, smooth_window_size=smooth_window_size, poly_order=poly_order, degrees=degrees,
-                       smooth_after_resampling=smooth_after_resampling,
-                       window_size_2=window_size_2, poly_order_2=poly_order_2, mode=mode, resample_first=False,
-                       output_all=output_all)
+    return elevation_pipeline_df, elevation_result_df, inclination_df
 
 
-def sql_get_timetable(trip_id, engine, min_stop_duration=30, round_int=True):
-    # distance from start 
-    # station name
-    # stop time at station in s
-    # driving time to next station in s
-
-    sql = """\
-    select geo_trips.trip_headsign, geo_stop_times.stop_sequence,\
-    geo_stop_times.arrival_time, geo_stop_times.departure_time,\
-    geo_stops.stop_name, ST_LineLocatePoint(ST_Transform(geo_shape_geoms.geom,25832),\
-    ST_Transform(ST_SetSRID(ST_MakePoint(stop_lon,stop_lat),4326),25832))\
-     * ST_length(ST_Transform(geo_shape_geoms.geom,25832)) as dist
-    from geo_stop_times, geo_stops, geo_trips, geo_shape_geoms
-    where 
-    geo_stops.stop_id = geo_stop_times.stop_id
-    and geo_stop_times.trip_id = geo_trips.trip_id
-    and geo_trips.shape_id = geo_shape_geoms.shape_id
-    and geo_trips.trip_id = :trip_id
-    order by stop_sequence, departure_time
-    """
-
-    time_table = pd.read_sql_query(text(sql), con=engine, params={"trip_id": trip_id})
-
-    s15 = pd.Timedelta(min_stop_duration * 0.5, unit="s")
-
-    last_stop = time_table.stop_sequence.iloc[-1]
-    first_stop = time_table.stop_sequence.iloc[0]
-
-    # ignore first and last station
-    ign_frst_last = (time_table.stop_sequence > first_stop) & (time_table.stop_sequence < last_stop)
-    arr_eq_dep = ign_frst_last & (time_table.departure_time == time_table.arrival_time)
-
-    # ANNAHME: Züge halten mindesten 30s
-    # if arrival time = departure time, then arrival time -15 and departure time + 15
-    time_table.loc[arr_eq_dep, ["arrival_time"]] -= s15
-    time_table.loc[arr_eq_dep, ["departure_time"]] += s15
-
-    # stop duration = dperature - arrival
-    time_table["stop_duration"] = (time_table.departure_time - time_table.arrival_time).dt.total_seconds()
-
-    # driving time to next station:
-    # take arrival time of next station and substract departure time 
-    driving_time = time_table.arrival_time[1:].dt.total_seconds().values - time_table.departure_time[
-                                                                           :-1].dt.total_seconds().values
-
-    driving_time = np.append(driving_time, 0)
-
-    time_table["driving_time"] = driving_time
-
-    if round_int:
-        time_table["dist"] = np.rint(time_table["dist"]).astype(int)
-        time_table["stop_duration"] = np.rint(time_table["stop_duration"]).astype(int)
-        time_table["driving_time"] = np.rint(time_table["driving_time"]).astype(int)
-
-    return time_table.trip_headsign.iloc[0], time_table[["dist", "stop_name", "stop_duration", "driving_time"]]
-
-
-def flip_trip(start_dists, end_dists, parameter, invert_para=False):
+def flip_trip(start_dists: ndarray, end_dists: ndarray, parameter: ndarray, invert_para: bool = False) \
+        -> Tuple[ndarray, ndarray, ndarray]:
     """
     Calculate the distances and parameter from the other direction.
 
@@ -156,8 +113,9 @@ def flip_trip(start_dists, end_dists, parameter, invert_para=False):
     Returns
     -------
     Numpy Array
-        The fliped distances and parameter
+        The flipped distances and parameter
     """
+
     trip_length = end_dists[-1]
 
     # calculate start dists from the end distances
@@ -175,7 +133,7 @@ def flip_trip(start_dists, end_dists, parameter, invert_para=False):
     return new_start_dists, new_end_dists, parameter
 
 
-def calc_end_dists(start_dists, trip_length):
+def calc_end_dists(start_dists: ndarray, trip_length: float) -> ndarray:
     """
 
     Parameters
@@ -195,8 +153,9 @@ def calc_end_dists(start_dists, trip_length):
     return end_dists
 
 
-def create_umlauf(parameter_df, trip_count, parameter_column, start_dists_column="start_dist",
-                  end_dists_column="end_dist", flip_first=False, drop_dups=True):
+def create_umlauf(parameter_df: DataFrame, trip_count: int, parameter_column: str,
+                  start_dists_column: str = "start_dist", end_dists_column: str = "end_dist", flip_first: bool = False,
+                  drop_dups: bool = True):
     """
     For the given distances and parameter arrays returns the computed "umlauf" arrays.
 
@@ -268,7 +227,7 @@ def create_umlauf(parameter_df, trip_count, parameter_column, start_dists_column
     return res
 
 
-def trip_title_to_filename(title):
+def trip_title_to_filename(title: str) -> str:
     special_char_map = {ord('ä'): 'ae', ord('ü'): 'ue', ord('ö'): 'oe', ord('ß'): 'ss', ord('('): '', ord(')'): '',
                         ord(' '): '_'}
 
@@ -280,7 +239,8 @@ def trip_title_to_filename(title):
     return filename
 
 
-def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclination, params=None):
+def write_input_sheet(trip_title: str, timetable: DataFrame, electrification: DataFrame, max_speed: DataFrame,
+                      inclination: DataFrame, params: Optional[Dict] = None) -> int:
     """
 
     Parameters
@@ -288,7 +248,7 @@ def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclinat
     trip_title
     timetable
     electrification
-    maxspeed
+    max_speed
     inclination
     params : dict
         sheet1 : "Timetable and limits",
@@ -364,7 +324,7 @@ def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclinat
 
     current_row += electrification.shape[0]
 
-    # ectrification end
+    # electrification end
     worksheet.write(current_row, 0, "]end")
     current_row += 1
 
@@ -377,11 +337,11 @@ def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclinat
     current_row += 1
 
     # maxspeed
-    maxspeed[["start_dist", "maxspeed"]].to_excel(writer, sheet_name=default_params['sheet1'], index=False,
-                                                  header=False,
-                                                  startrow=current_row)
+    max_speed[["start_dist", "maxspeed"]].to_excel(writer, sheet_name=default_params['sheet1'], index=False,
+                                                   header=False,
+                                                   startrow=current_row)
 
-    current_row += maxspeed.shape[0]
+    current_row += max_speed.shape[0]
 
     # maxspeed end
     worksheet.write(current_row, 0, "]end")
@@ -468,24 +428,4 @@ def write_input_sheet(trip_title, timetable, electrification, maxspeed, inclinat
 
     writer.save()
 
-
-def get_trip_data(trip_id, engine, elevation_sampler, crs=25832):
-    """
-    Returns
-    -------
-        title, timetable, electrification, maxspeed, inclination
-    """
-
-    osm_data = sql_get_osm(trip_id, engine, crs)
-
-    trip_headsign, timetable = sql_get_timetable(trip_id, engine)
-
-    title = str(trip_id) + " " + trip_headsign
-
-    electrification = get_osm_prop(osm_data, "electrified")
-
-    maxspeed = get_osm_prop(osm_data, "maxspeed")
-
-    inclination = sql_get_inclination(trip_id, osm_data, elevation_sampler, engine)
-
-    return title, timetable, electrification, maxspeed, inclination
+    return 0
