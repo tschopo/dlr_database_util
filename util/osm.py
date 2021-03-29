@@ -116,11 +116,12 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
                   "maxspeed": np.float64,
                   "maxspeed_forward": np.float64,
                   "maxspeed_backward": np.float64,
-                  "bridge": str,
-                  "bridge_type": str,
-                  'tunnel_type': str,
-                  'embankment': str,
-                  'cutting': str,
+                  #"tunnel": str,
+                  #"bridge": str,
+                  #"bridge_type": str,
+                  #'tunnel_type': str,
+                  #'embankment': str,
+                  #'cutting': str,
                   # 'ref': 'Int64',
                   'gauge': np.float64,
                   'traffic_mode': str,  # passenger / mixed / freight
@@ -138,11 +139,15 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
 
     assert trip_geom.crs.equals(osm_data.crs)
 
-    final_osm = combine_osm_pipeline(osm_data, trip_geom, filter_difference_length=filter_difference_length)
-
-    """
     osm_data['start_point'] = osm_data.apply(lambda r: Point(r['geom'].coords[0]), axis=1)
     osm_data['end_point'] = osm_data.apply(lambda r: Point(r['geom'].coords[-1]), axis=1)
+
+    final_osm = combine_osm_pipeline(osm_data, trip_geom, filter_difference_length=filter_difference_length)
+
+    final_osm = final_osm.drop_duplicates(subset=["way_id"])
+
+    """
+   
 
     buffered_trip = trip_geom.buffer(filter_buffer)
 
@@ -269,12 +274,10 @@ def combine_osm_pipeline(osm_data: GeoDataFrame, trip_geom: GeoSeries,
     osm_buf_1 = get_osm_in_buffer(trip_geom, osm_data, 1, method="strict")
     osm_buf_2 = get_osm_in_buffer(trip_geom, osm_data, 2, method="strict")
     osm_buf_3 = get_osm_in_buffer(trip_geom, osm_data, 3, method="strict")
-    osm_buf_4 = get_osm_in_buffer(trip_geom, osm_data, 4, method="strict")
-    osm_buf_5 = get_osm_in_buffer(trip_geom, osm_data, 4, method="both")
-    osm_buf_6 = get_osm_in_buffer(trip_geom, osm_data, 5, method="both")
-    osm_buf_7 = get_osm_in_buffer(trip_geom, osm_data, 5, method="either")
+    osm_buf_4 = get_osm_in_buffer(trip_geom, osm_data, 4, method="both")
+    osm_buf_5 = get_osm_in_buffer(trip_geom, osm_data, 4, method="either")
 
-    osm_pyramid = [osm_buf_2, osm_buf_3, osm_buf_4, osm_buf_5, osm_buf_6, osm_buf_7]
+    osm_pyramid = [osm_buf_2, osm_buf_3, osm_buf_4, osm_buf_5]
     final_osm = osm_buf_1
 
     for osm_buf in osm_pyramid:
@@ -360,14 +363,14 @@ def finalize_osm(osm_data, trip_geom, filter_inactive=True):
     if not filter_inactive:
         return osm_data[~osm_data.index.isin(overlapping)]
 
-    # remove from overlapping where status not active or is service track
-    osm_data = osm_data[osm_data.index.isin(overlapping) &
+    # remove overlapping where status not active or is service track
+    osm_data = osm_data[(~osm_data.index.isin(overlapping)) &
                         ((osm_data.status != "active") | osm_data.service.isnull() | (osm_data.service == 'None'))]
 
     return osm_data
 
 
-def get_osm_prop(osm_data, prop, brunnel_filter_length=10, round_int=True):
+def get_osm_prop(osm_data, prop, brunnel_filter_length=10, round_int=True, min_length=1000.):
     """
     Get dataframe of start_dist, end_dists, property value, for a given osm property. Merges adjacent sections with same
     value.
@@ -396,6 +399,8 @@ def get_osm_prop(osm_data, prop, brunnel_filter_length=10, round_int=True):
         DataFrame
             DataFrame with property values, start_dist and end_dist. If brunnel then also length.
     """
+
+    # TODO min length function: if prop change 80 100 80 (back to same value) and length under 1000 then igonore
 
     osm_prop_data = osm_data.copy()
 
