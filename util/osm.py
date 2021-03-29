@@ -29,8 +29,8 @@ def sql_get_srid(engine: Engine, schema: str = "public", table: str = "osm_railw
 
 
 def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engine, crs: Optional[Any] = None,
-                          table_srid: Optional[int] = None, get_osm_buffer: float = 0.0001, filter_buffer: float = 2.,
-                          intersection_buffer: float = 2., filter_difference_length: float = 1., schema: str = "public",
+                          table_srid: Optional[int] = None, get_osm_buffer: float = 0.0001,
+                          filter_difference_length: float = 1., schema: str = "public",
                           table: str = "osm_railways", geom_column: str = "geom", ) -> GeoDataFrame:
     """
     Get osm data for a LineString.
@@ -46,10 +46,6 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
         The srid of the osm table. If not provided, retrieves the srid from the database
     get_osm_buffer : float, default = 0.0001
                 Buffer used to get all osm data around the trip that lies in the buffer
-    filter_buffer: float, default = 2
-        Buffer that filters the osm data (start and endpoint of osm geometry have to lie in buffer)
-    intersection_buffer : float, default = 2
-        Buffer used around geometries to get difference and intersection
     filter_difference_length : float, default = 1
         Filter segments smaller than this length from difference of osm and trip
     schema
@@ -142,6 +138,9 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
 
     assert trip_geom.crs.equals(osm_data.crs)
 
+    final_osm = combine_osm_pipeline(osm_data, trip_geom, filter_difference_length=filter_difference_length)
+
+    """
     osm_data['start_point'] = osm_data.apply(lambda r: Point(r['geom'].coords[0]), axis=1)
     osm_data['end_point'] = osm_data.apply(lambda r: Point(r['geom'].coords[-1]), axis=1)
 
@@ -185,8 +184,104 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
 
     # merge missing and correct osm data
     final_osm = pd.concat([missing_osm, correct_osm])
+    """
 
-    final_osm = filter_overlapping_osm(final_osm, trip_geom)
+    final_osm = finalize_osm(final_osm, trip_geom)
+
+    return final_osm
+
+
+def get_trip_where_no_osm(trip_geom: GeoSeries, osm_data: GeoDataFrame, buffer_size: float = 5,
+                          filter_difference_length: float = 1) -> GeoSeries:
+    """
+    Get the segments of trip_geom where there is no osm data.
+    For a given trip and incomplete OSM data (meaning that the intersection of osm data and trip does not return the
+    whole trip), returns the segments of the trip where there is no OSM data.
+
+    Parameters
+    ----------
+    trip_geom
+    osm_data
+    buffer_size
+    filter_difference_length
+        filter osm segments smaller than this length
+
+    Returns
+    -------
+
+    """
+
+    # create buffer around correct geoms and join to single geom
+    correct_geoms = osm_data["geom"].buffer(buffer_size, cap_style=2)
+    correct_geom = unary_union(correct_geoms)
+
+    # get the difference of the single geom with the trip geom to detect the missing segments
+    missing_mask = trip_geom.iloc[0].difference(correct_geom)
+    missing_trip_segments = gpd.GeoDataFrame({'geometry': missing_mask}, crs=osm_data.crs)
+
+    # there are a bunch of tiny segments
+    missing_trip_segments = missing_trip_segments[missing_trip_segments.length > filter_difference_length]
+
+    return missing_trip_segments
+
+
+def get_osm_in_buffer(trip_geom: GeoSeries, osm_data: GeoDataFrame, buffer_size: float, method: str = "strict") \
+        -> GeoDataFrame:
+    """
+    Returns OSM data that lies in the buffer_size
+
+    Parameters
+    ----------
+    trip_geom
+    osm_data
+    buffer_size
+    method
+        'strict', 'both' or 'either'
+        strict: the whole geometry needs to be in buffer
+        both: start and end point of geometry need to be in buffer
+        either: start or end point need to be in buffer
+
+    Returns
+    -------
+
+    """
+
+    buffered_trip = trip_geom.buffer(buffer_size)
+    osm_data = osm_data.copy()
+
+    if method == "strict":
+        trip_contains_geom = osm_data.apply(lambda r: np.any(buffered_trip.contains(r['geom'])), axis=1)
+    else:
+        trip_contains_start = osm_data.apply(lambda r: np.any(buffered_trip.contains(r['start_point'])), axis=1)
+        trip_contains_end = osm_data.apply(lambda r: np.any(buffered_trip.contains(r['end_point'])), axis=1)
+        if method == "both":
+            trip_contains_geom = trip_contains_start & trip_contains_end
+        elif method == "either":
+            trip_contains_geom = trip_contains_start | trip_contains_end
+        else:
+            raise Exception("Method must be 'strict', 'both' or 'either'!")
+
+    return osm_data[trip_contains_geom]
+
+
+def combine_osm_pipeline(osm_data: GeoDataFrame, trip_geom: GeoSeries,
+                         filter_difference_length: float = 1) -> GeoDataFrame:
+    osm_buf_1 = get_osm_in_buffer(trip_geom, osm_data, 1, method="strict")
+    osm_buf_2 = get_osm_in_buffer(trip_geom, osm_data, 2, method="strict")
+    osm_buf_3 = get_osm_in_buffer(trip_geom, osm_data, 3, method="strict")
+    osm_buf_4 = get_osm_in_buffer(trip_geom, osm_data, 4, method="strict")
+    osm_buf_5 = get_osm_in_buffer(trip_geom, osm_data, 4, method="both")
+    osm_buf_6 = get_osm_in_buffer(trip_geom, osm_data, 5, method="both")
+    osm_buf_7 = get_osm_in_buffer(trip_geom, osm_data, 5, method="either")
+
+    osm_pyramid = [osm_buf_2, osm_buf_3, osm_buf_4, osm_buf_5, osm_buf_6, osm_buf_7]
+    final_osm = osm_buf_1
+
+    for osm_buf in osm_pyramid:
+        missing_segments = get_trip_where_no_osm(trip_geom, final_osm, 5,
+                                                 filter_difference_length=filter_difference_length)
+        missing_osm = get_osm_in_buffer(missing_segments, osm_buf, 5, method="either")
+        final_osm = pd.concat([missing_osm, final_osm])
 
     return final_osm
 
@@ -216,7 +311,7 @@ def calc_distances(osm_data: GeoDataFrame, trip_geom: GeoSeries, geom_col: str =
     return osm_data
 
 
-def filter_overlapping_osm(osm_data, trip_geom, filter_inactive=True):
+def finalize_osm(osm_data, trip_geom, filter_inactive=True):
     """
     Calculates overlapping segments along the trip geometry. Removes overlapping if they dont have status=active,
     or they are a service track.
@@ -226,11 +321,7 @@ def filter_overlapping_osm(osm_data, trip_geom, filter_inactive=True):
     """
 
     # calculate distances
-    osm_data['start_point'] = osm_data.apply(lambda r: Point(r['geom'].coords[0]), axis=1)
-    osm_data['end_point'] = osm_data.apply(lambda r: Point(r['geom'].coords[-1]), axis=1)
-
-    osm_data['start_point_distance'] = osm_data.apply(lambda r: trip_geom.project(r['start_point']), axis=1)
-    osm_data['end_point_distance'] = osm_data.apply(lambda r: trip_geom.project(r['end_point']), axis=1)
+    osm_data = calc_distances(osm_data, trip_geom)
 
     # make linestrings all same direction
     osm_data["geom"] = osm_data.apply(
@@ -248,12 +339,7 @@ def filter_overlapping_osm(osm_data, trip_geom, filter_inactive=True):
     osm_data["maxspeed_forward"] = t
 
     # recalculate distances and sort
-    osm_data['start_point'] = osm_data.apply(lambda r: Point(r['geom'].coords[0]), axis=1)
-    osm_data['end_point'] = osm_data.apply(lambda r: Point(r['geom'].coords[-1]), axis=1)
-
-    # sort the osm geoms along the trip
-    osm_data['start_point_distance'] = osm_data.apply(lambda r: trip_geom.project(r['start_point']), axis=1)
-    osm_data['end_point_distance'] = osm_data.apply(lambda r: trip_geom.project(r['end_point']), axis=1)
+    osm_data = calc_distances(osm_data, trip_geom)
 
     osm_data.sort_values(['start_point_distance', 'end_point_distance'], inplace=True)
     osm_data.reset_index(drop=True, inplace=True)
@@ -289,6 +375,7 @@ def get_osm_prop(osm_data, prop, brunnel_filter_length=10, round_int=True):
     Parameters
     ----------
         
+
         osm_data : GeoDataFrame
             Columns start_point_distance, end_point_distance, prop [brunnel, electrified, maxspeed]
             brunnel: 'yes'|'no', electrified: 'yes'|'no'|'unknown', maxspeed: int|np.nan
@@ -299,7 +386,10 @@ def get_osm_prop(osm_data, prop, brunnel_filter_length=10, round_int=True):
 
         prop : str
             The OSM property. Accepted Values are "brunnel", "electrified" or "maxspeed"
-
+        brunnel_filter_length
+            ignores brunnels that are smaller than this length
+        round_int
+            return ints not floats for start_dist, end_dist, maxspeed
     Returns
     -------
     
@@ -324,18 +414,12 @@ def get_osm_prop(osm_data, prop, brunnel_filter_length=10, round_int=True):
         # filter unknown
         osm_prop_data = osm_prop_data[osm_prop_data.electrified != "unknown"]
 
-    # TODO How to handle nan values. If None, then Nans/unknown are ignored. If value,
-    #  then Nans are replaced with the value.
-    # TODO: if all NAN
-    # bei maxspeed am anfang 60 anehmen wenn erster wert fehlt?
-
     # create new dataframe with values
     # start_distance, end_distance, prop_value
 
     # go through dataframe
     # check if the value changes.
     # if it changes then save old_start, prev_row.end_point_distance, old_value
-
 
     old_val = osm_prop_data.iloc[0][prop]
 

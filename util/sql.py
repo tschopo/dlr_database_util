@@ -16,7 +16,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from .osm import get_osm_prop
-from .osm import sql_get_osm_from_line, filter_overlapping_osm
+from .osm import sql_get_osm_from_line, finalize_osm
 from .tpt import process_ele
 
 
