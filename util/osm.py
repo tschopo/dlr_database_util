@@ -196,8 +196,8 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
     return final_osm
 
 
-def get_trip_where_no_osm(trip_geom: GeoSeries, osm_data: GeoDataFrame, buffer_size: float = 5,
-                          filter_difference_length: float = 1) -> GeoSeries:
+def get_trip_where_no_osm(trip_geom: GeoSeries, osm_data: GeoDataFrame, buffer_size: float = 8.,
+                          filter_difference_length: float = 1.) -> GeoSeries:
     """
     Get the segments of trip_geom where there is no osm data.
     For a given trip and incomplete OSM data (meaning that the intersection of osm data and trip does not return the
@@ -270,20 +270,20 @@ def get_osm_in_buffer(trip_geom: GeoSeries, osm_data: GeoDataFrame, buffer_size:
 
 
 def combine_osm_pipeline(osm_data: GeoDataFrame, trip_geom: GeoSeries,
-                         filter_difference_length: float = 1) -> GeoDataFrame:
+                         filter_difference_length: float = 1., search_buffer: float = 8.) -> GeoDataFrame:
     osm_buf_1 = get_osm_in_buffer(trip_geom, osm_data, 1, method="strict")
     osm_buf_2 = get_osm_in_buffer(trip_geom, osm_data, 2, method="strict")
     osm_buf_3 = get_osm_in_buffer(trip_geom, osm_data, 3, method="strict")
     osm_buf_4 = get_osm_in_buffer(trip_geom, osm_data, 4, method="both")
-    osm_buf_5 = get_osm_in_buffer(trip_geom, osm_data, 4, method="either")
+    osm_buf_5 = get_osm_in_buffer(trip_geom, osm_data, 5, method="either")
 
     osm_pyramid = [osm_buf_2, osm_buf_3, osm_buf_4, osm_buf_5]
     final_osm = osm_buf_1
 
     for osm_buf in osm_pyramid:
-        missing_segments = get_trip_where_no_osm(trip_geom, final_osm, 5,
+        missing_segments = get_trip_where_no_osm(trip_geom, final_osm, search_buffer,
                                                  filter_difference_length=filter_difference_length)
-        missing_osm = get_osm_in_buffer(missing_segments, osm_buf, 5, method="either")
+        missing_osm = get_osm_in_buffer(missing_segments, osm_buf, search_buffer, method="either")
         final_osm = pd.concat([missing_osm, final_osm])
 
     return final_osm
@@ -314,13 +314,21 @@ def calc_distances(osm_data: GeoDataFrame, trip_geom: GeoSeries, geom_col: str =
     return osm_data
 
 
-def finalize_osm(osm_data, trip_geom, filter_inactive=True):
+def finalize_osm(osm_data, trip_geom, filter_inactive: bool = True):
     """
     Calculates overlapping segments along the trip geometry. Removes overlapping if they dont have status=active,
     or they are a service track.
     Adds start_point, end_point, end_point_distance, end_point_distance columns.
     Sorts the data after start_point.
     Aligns the geoms so they all point in same direction.
+
+    Parameters
+    ----------
+
+    filter_inactive
+        if True filters overlapping segments with status != active and service tracks
+        if False then all overlapping segments are discarded. This leads to gaps in the data.
+
     """
 
     # calculate distances
@@ -350,7 +358,6 @@ def finalize_osm(osm_data, trip_geom, filter_inactive=True):
     # get overlapping segments
     # important: data must be sorted after start_distance
     overlapping = []
-
     for i, row in osm_data.iterrows():
         overlapping_idx = osm_data[i + 1:].index[
             row["end_point_distance"] > osm_data[i + 1:]["start_point_distance"]].tolist()
@@ -363,10 +370,15 @@ def finalize_osm(osm_data, trip_geom, filter_inactive=True):
     if not filter_inactive:
         return osm_data[~osm_data.index.isin(overlapping)]
 
-    # remove overlapping where status not active or is service track
-    osm_data = osm_data[(~osm_data.index.isin(overlapping)) &
-                        ((osm_data.status != "active") | osm_data.service.isnull() | (osm_data.service == 'None'))]
+    # from overlapping filter sections that are not active or are service tracks
+    # remove isin(overlapping) and ((status != active) or (service != 'None))
 
+    keep = (~osm_data.index.isin(overlapping)) | ((osm_data.status == "active") & (osm_data.service.isnull()))
+    discard = (osm_data.index.isin(overlapping)) & ((osm_data.status != "active") | (osm_data.service.notnull()))
+
+    assert np.all(keep == ~discard)
+
+    osm_data = osm_data[keep]
     return osm_data
 
 

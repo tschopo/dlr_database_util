@@ -1,8 +1,9 @@
 import re
 from typing import Tuple, Dict, Optional
+
 import numpy as np
 import pandas as pd
-from ElevationSampler import *
+from ElevationSampler import ElevationProfile
 from numpy import ndarray
 from pandas import DataFrame
 
@@ -19,51 +20,50 @@ def process_ele(elevation: ndarray, distances: ndarray, brunnels: DataFrame, fir
 
     distances, elevation = np.array(distances), np.array(elevation)
 
+    elevation_profile = ElevationProfile(distances, elevation)
+
     # first_resample so that equidistant sample points at first_sample_distance apart
-    distances_10, elevation_10 = ElevationSampler.resample_ele(elevation, distances, first_sample_distance)
-    ele_pipe = elevation_10.copy()
+    elevation_10 = elevation_profile.resample(first_sample_distance).get_elevations()
+    distances_10 = elevation_profile.get_distances()
 
     # then interpolate the brunnels
-    ele_brunnel = ElevationSampler.interpolate_brunnels(ele_pipe, distances_10, brunnels,
-                                                        distance_delta=first_sample_distance,
-                                                        construct_brunnels=construct_brunnels,
-                                                        max_brunnel_length=max_brunnel_length,
-                                                        construct_brunnel_thresh=construct_brunnel_thresh,
-                                                        diff_kernel_dist=diff_kernel_dist
-                                                        )
-    ele_pipe = ele_brunnel.copy()
+    ele_brunnel = elevation_profile.interpolate_brunnels(brunnels,
+                                                         distance_delta=first_sample_distance,
+                                                         construct_brunnels=construct_brunnels,
+                                                         max_brunnel_length=max_brunnel_length,
+                                                         construct_brunnel_thresh=construct_brunnel_thresh,
+                                                         diff_kernel_dist=diff_kernel_dist).get_elevations()
 
     # then adjust the forest height
     ele_adjusted = ele_brunnel
     if adjust_forest_height:
-        ele_adjusted = ElevationSampler.adjust_forest_height(ele_pipe, distances_10, method=adjust_method,
-                                                             window_size=adjust_window_size,
-                                                             std_thresh=std_thresh, sub_factor=sub_factor, clip=clip,
-                                                             minimum_loops=minimum_loops)
-        ele_pipe = ele_adjusted.copy()
+        ele_adjusted = elevation_profile.to_terrain_model(method=adjust_method,
+                                                          window_size=adjust_window_size,
+                                                          std_thresh=std_thresh, sub_factor=sub_factor, clip=clip,
+                                                          minimum_loops=minimum_loops).get_elevations()
 
     # then adjust the forest height again with method variance
     if double_adjust:
-        ele_adjusted = ElevationSampler.adjust_forest_height(ele_pipe, method="variance",
-                                                             window_size=adjust_window_size,
-                                                             std_thresh=std_thresh, sub_factor=sub_factor, clip=clip)
-        ele_pipe = ele_adjusted.copy()
+        ele_adjusted = elevation_profile.to_terrain_model(method="variance",
+                                                          window_size=adjust_window_size,
+                                                          std_thresh=std_thresh, sub_factor=sub_factor,
+                                                          clip=clip).get_elevations()
 
     # then smooth the elevation profile with high polyorder
-    ele_smoothed = ElevationSampler.smooth_ele(ele_pipe, window_size=smooth_window_size, poly_order=poly_order,
-                                               mode=mode)
-    ele_pipe = ele_smoothed.copy()
+    ele_smoothed = elevation_profile.smooth(window_size=smooth_window_size, poly_order=poly_order,
+                                            mode=mode).get_elevations()
 
     # then resample the elevation to the end sample distance
-    distances_100, elevation_100 = ElevationSampler.resample_ele(ele_pipe, distances_10, end_sample_distance)
+    elevation_100 = elevation_profile.resample(end_sample_distance).get_elevations()
+    distances_100 = elevation_profile.get_distances()
 
     # then smooth again with averaging smoothing method
     if smooth_after_resampling:
-        elevation_100 = ElevationSampler.smooth_ele(elevation_100, window_size=window_size_2, poly_order=poly_order_2,
-                                                    mode=mode)
+        elevation_100 = elevation_profile.smooth(window_size=window_size_2, poly_order=poly_order_2,
+                                                 mode=mode).get_elevations()
 
     # then calculate the inclination
-    incl_100 = ElevationSampler.ele_to_incl(elevation_100, distances_100, degrees=degrees)
+    incl_100 = elevation_profile.inclination(degrees=degrees)
 
     # set last incl to 0 in some cases
     if drop_last_incl_if_high \

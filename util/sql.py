@@ -7,20 +7,15 @@ from typing import Any, Tuple, Optional
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from ElevationSampler import ElevationSampler
+from ElevationSampler import DEM
 from geopandas import GeoSeries, GeoDataFrame
 from pandas import DataFrame
-from shapely.geometry import Point
-from shapely.ops import unary_union
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from .osm import get_osm_prop
-from .osm import sql_get_osm_from_line, finalize_osm
+from .osm import sql_get_osm_from_line
 from .tpt import process_ele
-
-
-# from util import sql_get_osm_raw_by_shape_id
 
 
 def sql_get_shape_id(trip_id: int, engine: Engine) -> int:
@@ -142,16 +137,19 @@ def sql_get_osm_for_trip(trip_id, engine, crs, **kwargs):
     return osm_data
 
 
-def sql_get_inclination(trip_id: int, osm_data: GeoDataFrame, elevation_sampler: ElevationSampler, engine: Engine,
+def sql_get_inclination(trip_id: int, osm_data: GeoDataFrame, elevation_sampler: DEM, engine: Engine,
                         first_sample_distance: float = 10.0, brunnel_filter_length: float = 10.,
                         interpolated: bool = True, **kwargs) -> Tuple[DataFrame, DataFrame, DataFrame]:
     brunnels = get_osm_prop(osm_data, "brunnel", brunnel_filter_length=brunnel_filter_length)
 
     trip_geom = sql_get_trip_geom(trip_id, engine, elevation_sampler.dem.crs)
 
-    x_coords, y_coords, distances, elevation = elevation_sampler.elevation_profile(trip_geom,
-                                                                                   distance=first_sample_distance,
-                                                                                   interpolated=interpolated)
+    elevation_profile = elevation_sampler.elevation_profile(trip_geom,
+                                                            distance=first_sample_distance,
+                                                            interpolated=interpolated)
+
+    elevation = elevation_profile.get_elevations()
+    distances = elevation_profile.get_distances()
 
     return process_ele(elevation, distances, brunnels, **kwargs)
 
@@ -189,16 +187,16 @@ def sql_get_timetable(trip_id: int, engine: Engine, min_stop_duration: float = 3
     ign_frst_last = (time_table.stop_sequence > first_stop) & (time_table.stop_sequence < last_stop)
     arr_eq_dep = ign_frst_last & (time_table.departure_time == time_table.arrival_time)
 
-    # ANNAHME: Züge halten mindesten 30s
+    # Assumption: trains stop at least 30s
     # if arrival time = departure time, then arrival time -15 and departure time + 15
     time_table.loc[arr_eq_dep, ["arrival_time"]] -= s15
     time_table.loc[arr_eq_dep, ["departure_time"]] += s15
 
-    # stop duration = dperature - arrival
+    # stop duration = departure - arrival
     time_table["stop_duration"] = (time_table.departure_time - time_table.arrival_time).dt.total_seconds()
 
     # driving time to next station:
-    # take arrival time of next station and substract departure time
+    # take arrival time of next station and subtract departure time
     driving_time = time_table.arrival_time[1:].dt.total_seconds().values - time_table.departure_time[
                                                                            :-1].dt.total_seconds().values
 
@@ -230,7 +228,7 @@ def clean_name(name: str) -> str:
     return name[0]
 
 
-def sql_get_trip_data(trip_id: int, engine: Engine, elevation_sampler: ElevationSampler, crs: Any = 25832, **kwargs) \
+def sql_get_trip_data(trip_id: int, engine: Engine, elevation_sampler: DEM, crs: Any = 25832, **kwargs) \
         -> Tuple[str, DataFrame, DataFrame, DataFrame, DataFrame, DataFrame, DataFrame]:
     """
     Returns
