@@ -146,51 +146,6 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
 
     final_osm = final_osm.drop_duplicates(subset=["way_id"])
 
-    """
-   
-
-    buffered_trip = trip_geom.buffer(filter_buffer)
-
-    trip_contains_start = osm_data.apply(lambda r: buffered_trip.contains(r['start_point']), axis=1).iloc[:, 0]
-    trip_contains_end = osm_data.apply(lambda r: buffered_trip.contains(r['end_point']), axis=1).iloc[:, 0]
-
-    # correct osm data: where start and endpoint are in trip buffer
-    correct_osm = osm_data[trip_contains_start & trip_contains_end]
-
-    # create buffer around correct geoms and join to single geom for difference
-    correct_geoms = correct_osm["geom"].buffer(intersection_buffer, cap_style=2)
-    correct_geom = unary_union(correct_geoms)
-
-    # get the difference of the single geom with the trip geom to detect the missing segments
-    missing_mask = trip_geom.iloc[0].difference(correct_geom)
-    missing_mask_pd = gpd.GeoDataFrame({'geometry': missing_mask}, crs=crs)
-
-    # there are a bunch of tiny segments
-    missing_mask_pd = missing_mask_pd[missing_mask_pd.length > filter_difference_length]
-
-    # make intersection with osm data to get missing values
-    # for the intersection to work, we need polygons --> make buffer around linestring
-    missing_mask_pd["geometry"] = missing_mask_pd.buffer(intersection_buffer, cap_style=1)
-
-    # save old linestrings to convert polys back to linestring later
-    osm_data["geom_old"] = osm_data["geom"]
-
-    # also make osm geom buffered for intersection
-    osm_data["geom"] = osm_data.buffer(intersection_buffer, cap_style=1)
-
-    # get the intersection with osm data
-    missing_osm = gpd.overlay(missing_mask_pd, osm_data, how='intersection')
-
-    # convert back to linestring
-    missing_osm["geom"] = missing_osm["geom_old"]
-    missing_osm = missing_osm.drop(['geom_old'], axis=1)
-    missing_osm = missing_osm.set_geometry('geom')
-    missing_osm = missing_osm.drop(['geometry'], axis=1)
-
-    # merge missing and correct osm data
-    final_osm = pd.concat([missing_osm, correct_osm])
-    """
-
     final_osm = finalize_osm(final_osm, trip_geom)
 
     return final_osm
@@ -230,7 +185,7 @@ def get_trip_where_no_osm(trip_geom: GeoSeries, osm_data: GeoDataFrame, buffer_s
     return missing_trip_segments
 
 
-def get_osm_in_buffer(trip_geom: GeoSeries, osm_data: GeoDataFrame, buffer_size: float, method: str = "strict") \
+def get_osm_in_buffer(trip_geom: Union[GeoSeries, GeoDataFrame], osm_data: GeoDataFrame, buffer_size: float, method: str = "strict") \
         -> GeoDataFrame:
     """
     Returns OSM data that lies in the buffer_size
@@ -271,13 +226,15 @@ def get_osm_in_buffer(trip_geom: GeoSeries, osm_data: GeoDataFrame, buffer_size:
 
 def combine_osm_pipeline(osm_data: GeoDataFrame, trip_geom: GeoSeries,
                          filter_difference_length: float = 1., search_buffer: float = 8.) -> GeoDataFrame:
+
     osm_buf_1 = get_osm_in_buffer(trip_geom, osm_data, 1, method="strict")
     osm_buf_2 = get_osm_in_buffer(trip_geom, osm_data, 2, method="strict")
     osm_buf_3 = get_osm_in_buffer(trip_geom, osm_data, 3, method="strict")
     osm_buf_4 = get_osm_in_buffer(trip_geom, osm_data, 4, method="both")
-    osm_buf_5 = get_osm_in_buffer(trip_geom, osm_data, 5, method="either")
+    osm_buf_5 = get_osm_in_buffer(trip_geom, osm_data, 2, method="either")  # for the endings
+    osm_buf_6 = get_osm_in_buffer(trip_geom, osm_data, 5, method="either")
 
-    osm_pyramid = [osm_buf_2, osm_buf_3, osm_buf_4, osm_buf_5]
+    osm_pyramid = [osm_buf_2, osm_buf_3, osm_buf_4, osm_buf_5, osm_buf_6]
     final_osm = osm_buf_1
 
     for osm_buf in osm_pyramid:
@@ -355,6 +312,40 @@ def finalize_osm(osm_data, trip_geom, filter_inactive: bool = True):
     osm_data.sort_values(['start_point_distance', 'end_point_distance'], inplace=True)
     osm_data.reset_index(drop=True, inplace=True)
 
+    # problem when the trip_geom has overlapping segments (e.g. at "Kopfbahnhöfe")
+    # identify overlapping segments. in the overlapping segments duplicate the osm data with flipped geometry
+    # get the segments where trip_geom crosses itself
+    linestrings = []
+    for a, b in zip(trip_geom.iloc[0].coords, trip_geom.iloc[0].coords[1:]):
+        linestrings.append(LineString([a, b]))
+
+    l = []
+    for l1, l2, l3 in zip(linestrings, linestrings[1:], linestrings[2:]):
+        if not LineString(l1.coords[:] + l2.coords[:] + l3.coords[:]).is_simple:
+            l.append(l1)
+            l.append(l2)
+            l.append(l3)
+    segments = gpd.GeoDataFrame({"geometry": l})
+
+    # get the osm data in these segments
+    doubled_osm = get_osm_in_buffer(segments, osm_data, 5, method="either")
+
+    for index, row in doubled_osm.iterrows():
+        row["geom"] = LineString(row["geom"].coords[::-1])
+
+        t_spd = row["start_point_distance"]
+        t_sp = row["start_point"]
+        row["start_point_distance"] = row["end_point_distance"]
+        row["start_point"] = row["end_point"]
+        row["end_point_distance"] = t_spd
+        row["end_point"] = t_sp
+
+        # add to osm with flipped geometries
+        osm_data.append(row)
+
+    osm_data.sort_values(['start_point_distance', 'end_point_distance'], inplace=True)
+    osm_data.reset_index(drop=True, inplace=True)
+
     # get overlapping segments
     # important: data must be sorted after start_distance
     overlapping = []
@@ -373,16 +364,23 @@ def finalize_osm(osm_data, trip_geom, filter_inactive: bool = True):
     # from overlapping filter sections that are not active or are service tracks
     # remove isin(overlapping) and ((status != active) or (service != 'None))
 
-    keep = (~osm_data.index.isin(overlapping)) | ((osm_data.status == "active") & (osm_data.service.isnull()))
-    discard = (osm_data.index.isin(overlapping)) & ((osm_data.status != "active") | (osm_data.service.notnull()))
+    keep = (~osm_data.index.isin(overlapping)) | ((osm_data.status == "active") & (osm_data.service == "None"))
+    discard = (osm_data.index.isin(overlapping)) & ((osm_data.status != "active") | (osm_data.service != "None"))
 
     assert np.all(keep == ~discard)
 
     osm_data = osm_data[keep]
+
+    # TODO this way there are tracks lost. add final step: compute missing segments
+    # get all osm in missing segment
+    # create new osm row where geom is missing segment, and values are computed from the osm segments
+    # e.g. max(maxspeeds), tunnel = yes if any yes, bridge = yes if any yes, electrified = yes if any yes ...
+
     return osm_data
 
 
-def get_osm_prop(osm_data, prop, brunnel_filter_length=10, round_int=True, min_length=1000.):
+def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float = 10., round_int: bool = True,
+                 min_length: Optional[float] = None):
     """
     Get dataframe of start_dist, end_dists, property value, for a given osm property. Merges adjacent sections with same
     value.
@@ -412,9 +410,9 @@ def get_osm_prop(osm_data, prop, brunnel_filter_length=10, round_int=True, min_l
             DataFrame with property values, start_dist and end_dist. If brunnel then also length.
     """
 
-    # TODO min length function: if prop change 80 100 80 (back to same value) and length under 1000 then igonore
-
     osm_prop_data = osm_data.copy()
+
+
 
     if prop == "brunnel":
         filter_bool = (osm_prop_data.bridge == 'yes') | (osm_prop_data.tunnel == 'yes')
@@ -427,6 +425,7 @@ def get_osm_prop(osm_data, prop, brunnel_filter_length=10, round_int=True, min_l
                                                  osm_prop_data["maxspeed"])
         # filter nans
         osm_prop_data = osm_prop_data[~np.isnan(osm_prop_data.maxspeed)]
+
     elif prop == "electrified":
         # filter unknown
         osm_prop_data = osm_prop_data[osm_prop_data.electrified != "unknown"]
@@ -434,7 +433,7 @@ def get_osm_prop(osm_data, prop, brunnel_filter_length=10, round_int=True, min_l
     # create new dataframe with values
     # start_distance, end_distance, prop_value
 
-    # go through dataframe
+    # Idea: go through dataframe
     # check if the value changes.
     # if it changes then save old_start, prev_row.end_point_distance, old_value
 
@@ -449,11 +448,15 @@ def get_osm_prop(osm_data, prop, brunnel_filter_length=10, round_int=True, min_l
 
     prev_row = osm_prop_data.iloc[0]
     for index, row in osm_prop_data.iterrows():
+
+        # We look if the new val changes, if it changes we add the previous value. This way we know the end distance.
         if row[prop] != old_val:
+
             start_dists.append(old_start)
             end_dists.append(prev_row["end_point_distance"])
             prop_vals.append(old_val)
 
+            # save the values for the next segment
             old_val = row[prop]
             old_start = row["start_point_distance"]
 

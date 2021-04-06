@@ -43,7 +43,7 @@ def process_ele(elevation: ndarray, distances: ndarray, brunnels: DataFrame, fir
                                                           minimum_loops=minimum_loops).get_elevations()
 
     # then adjust the forest height again with method variance
-    if double_adjust:
+    if double_adjust and adjust_forest_height:
         ele_adjusted = elevation_profile.to_terrain_model(method="variance",
                                                           window_size=adjust_window_size,
                                                           std_thresh=std_thresh, sub_factor=sub_factor,
