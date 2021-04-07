@@ -33,6 +33,8 @@ def sql_get_shape_id(trip_id: int, engine: Engine) -> int:
             int
                 The shape_id of the trip
     """
+    # sqlalchemy cant handle numpy datatypes
+    trip_id = int(trip_id)
 
     sql = """
     SELECT geo_shape_geoms.shape_id 
@@ -83,6 +85,8 @@ def sql_get_trip_stops(trip_id: int, engine: Engine) -> DataFrame:
     and geo_trips.trip_id = :trip_id
     order by stop_sequence;
     """
+    # sqlalchemy cant handle numpy datatypes
+    trip_id = int(trip_id)
 
     stops = pd.read_sql_query(text(sql), con=engine, params={"trip_id": trip_id})
 
@@ -105,6 +109,9 @@ def sql_get_trip_geom(trip_id: int, engine: Engine, crs: Optional[Any] = None) -
     -------
 
     """
+    # sqlalchemy cant handle numpy datatypes
+    trip_id = int(trip_id)
+
     shape_id = sql_get_shape_id(trip_id, engine)
     trip_geom = sql_get_geometry(shape_id, engine)
 
@@ -140,6 +147,9 @@ def sql_get_osm_for_trip(trip_id, engine, crs, **kwargs):
 def sql_get_inclination(trip_id: int, osm_data: GeoDataFrame, elevation_sampler: DEM, engine: Engine,
                         first_sample_distance: float = 10.0, brunnel_filter_length: float = 10.,
                         interpolated: bool = True, **kwargs) -> Tuple[DataFrame, DataFrame, DataFrame]:
+    # sqlalchemy cant handle numpy datatypes
+    trip_id = int(trip_id)
+
     brunnels = get_osm_prop(osm_data, "brunnel", brunnel_filter_length=brunnel_filter_length)
 
     trip_geom = sql_get_trip_geom(trip_id, engine, elevation_sampler.dem.crs)
@@ -160,6 +170,9 @@ def sql_get_timetable(trip_id: int, engine: Engine, min_stop_duration: float = 3
     # station name
     # stop time at station in s
     # driving time to next station in s
+
+    # sqlalchemy cant handle numpy datatypes
+    trip_id = int(trip_id)
 
     sql = """\
     select geo_trips.trip_headsign, geo_stop_times.stop_sequence,\
@@ -213,6 +226,7 @@ def sql_get_timetable(trip_id: int, engine: Engine, min_stop_duration: float = 3
 
 
 def sql_get_trip_title(trip_id: int, engine: Engine) -> str:
+    trip_id = int(trip_id)
     stops = sql_get_trip_stops(trip_id, engine)
     start = stops["stop_name"].iloc[0]
     end = stops["stop_name"].iloc[-1]
@@ -237,6 +251,8 @@ def sql_get_trip_data(trip_id: int, engine: Engine, elevation_sampler: DEM, crs:
         and elevation if return ele=True
         elevation is a DataFrame with original distances,
     """
+    # sqlalchemy cant handle numpy datatypes
+    trip_id = int(trip_id)
 
     osm_data = sql_get_osm_for_trip(trip_id, engine, crs)
 

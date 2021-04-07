@@ -1,13 +1,17 @@
 """
 Functions that interface with the OSM rail database as defined by the import script
 """
+import os
 import re
+import urllib.request
+from shutil import which
 from typing import Optional, Union, Any
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pyproj
+from ElevationSampler import DEM
 from geopandas import GeoDataFrame, GeoSeries
 from pandas import DataFrame
 from shapely.geometry import LineString
@@ -116,12 +120,12 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
                   "maxspeed": np.float64,
                   "maxspeed_forward": np.float64,
                   "maxspeed_backward": np.float64,
-                  #"tunnel": str,
-                  #"bridge": str,
-                  #"bridge_type": str,
-                  #'tunnel_type': str,
-                  #'embankment': str,
-                  #'cutting': str,
+                  # "tunnel": str,
+                  # "bridge": str,
+                  # "bridge_type": str,
+                  # 'tunnel_type': str,
+                  # 'embankment': str,
+                  # 'cutting': str,
                   # 'ref': 'Int64',
                   'gauge': np.float64,
                   'traffic_mode': str,  # passenger / mixed / freight
@@ -185,7 +189,8 @@ def get_trip_where_no_osm(trip_geom: GeoSeries, osm_data: GeoDataFrame, buffer_s
     return missing_trip_segments
 
 
-def get_osm_in_buffer(trip_geom: Union[GeoSeries, GeoDataFrame], osm_data: GeoDataFrame, buffer_size: float, method: str = "strict") \
+def get_osm_in_buffer(trip_geom: Union[GeoSeries, GeoDataFrame], osm_data: GeoDataFrame, buffer_size: float,
+                      method: str = "strict") \
         -> GeoDataFrame:
     """
     Returns OSM data that lies in the buffer_size
@@ -226,7 +231,6 @@ def get_osm_in_buffer(trip_geom: Union[GeoSeries, GeoDataFrame], osm_data: GeoDa
 
 def combine_osm_pipeline(osm_data: GeoDataFrame, trip_geom: GeoSeries,
                          filter_difference_length: float = 1., search_buffer: float = 8.) -> GeoDataFrame:
-
     osm_buf_1 = get_osm_in_buffer(trip_geom, osm_data, 1, method="strict")
     osm_buf_2 = get_osm_in_buffer(trip_geom, osm_data, 2, method="strict")
     osm_buf_3 = get_osm_in_buffer(trip_geom, osm_data, 3, method="strict")
@@ -412,8 +416,6 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
 
     osm_prop_data = osm_data.copy()
 
-
-
     if prop == "brunnel":
         filter_bool = (osm_prop_data.bridge == 'yes') | (osm_prop_data.tunnel == 'yes')
         osm_prop_data["brunnel"] = np.where(filter_bool, "yes", "no")
@@ -451,7 +453,6 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
 
         # We look if the new val changes, if it changes we add the previous value. This way we know the end distance.
         if row[prop] != old_val:
-
             start_dists.append(old_start)
             end_dists.append(prev_row["end_point_distance"])
             prop_vals.append(old_val)
@@ -489,3 +490,51 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
 
     props.reset_index(drop=True, inplace=True)
     return props
+
+
+def osm_railways_to_psql(geofabrik_pbf: str, database="liniendatenbank", user="postgres", password=None):
+    """
+    Warning not tested
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    """
+
+    # TODO test this
+
+    # download geofabrik data if geo_fabrik_pbf is a url
+    if geofabrik_pbf.startswith('http'):
+        urllib.request.urlretrieve(geofabrik_pbf)
+        geofabrik_pbf = geofabrik_pbf.split('/')[-1]
+
+    # filter geofabrik germany osm data to only include railway data, to speedup import
+    # test if osmium is installed
+    if which('osmium') is not None:
+        os.system('osmium tags-filter -o filtered.osm.pbf '
+                  + geofabrik_pbf +
+                  ' nwr/railway nwr/disused:railway '
+                  'nwr/abandoned:railway nwr/razed:railway nwr/construction:railway nwr/proposed:railway '
+                  'nwr/planned:railway n/public_transport=stop_position nwr/public_transport=platform r/route=train '
+                  'r/route=tram r/route=light_rail')
+        geofabrik_pbf = 'filtered.osm.pbf'
+
+    # osm2pgsql -d liniendatenbank -U postgres -W -O flex -S railways.lua data/germany-railway.osm.pbf
+    os.system('osm2pgsql -d '
+              + database +
+              '-U '
+              + user +
+              '-W -O flex -S railways.lua '
+              + geofabrik_pbf +
+              '< '
+              + password)
+    return
+
+
+def plot(osm_data: GeoDataFrame, prop: Optional[str] = None, dem: Optional[DEM] = None):
+
+
+    return
