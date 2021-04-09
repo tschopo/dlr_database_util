@@ -492,7 +492,8 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
             segments.append(current_segment)
 
         # go through segments. if a segment is long then set all maxspeeds to median of trip
-        median_maxspeed = osm_prop_data[prop].median()
+        median_maxspeed = spatial_median(osm_prop_data)
+
         for segment in segments:
             if segment.length > maxspeed_null_segment_length:
                 osm_prop_data.loc[segment.members, prop] = median_maxspeed
@@ -601,6 +602,32 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
     return props
 
 
+def spatial_median(osm_data, prop="maxspeed"):
+    """
+    calculate the weighted median. repeat each value by length.
+
+    Parameters
+    ----------
+    gdf
+
+    Returns
+    -------
+
+    """
+
+    osm_data = osm_data.copy()
+
+    osm_data["length"] = osm_data.length
+    vals = []
+    for index, row in osm_data.iterrows():
+        vals = vals + ([row[prop]] * int(row["length"]))
+
+    vals = np.array(vals)
+    median = np.nanmedian(vals)
+
+    return median
+
+
 def osm_railways_to_psql(geofabrik_pbf: str, database="liniendatenbank", user="postgres", password=None):
     """
     Warning not tested
@@ -644,14 +671,24 @@ def osm_railways_to_psql(geofabrik_pbf: str, database="liniendatenbank", user="p
 
 
 # TODO put plots in separate file
-def plot(osm_data: GeoDataFrame, prop: Optional[str] = None, dem: Optional[DEM] = None) -> alt.Chart:
-    chart = None
+def plot_osm(osm_data: GeoDataFrame, prop: Optional[str] = None, dem: Optional[DEM] = None):
+    """
+    Plot osm data on map.
+
+    Parameters
+    ----------
+    osm_data
+    prop
+    dem
+
+    Returns
+    -------
+
+    """
     if prop == "maxspeed":
-        maxspeed = get_osm_prop(osm_data, "maxspeed")
+        return
 
-        chart = plot_maxspeeds(maxspeed)
-
-    return chart
+    return
 
 
 def plot_trip_props(maxspeed, electrified, elevation):
@@ -661,7 +698,7 @@ def plot_trip_props(maxspeed, electrified, elevation):
 
     chart_maxspeed = chart_maxspeed \
         .encode(
-            x=alt.X('distance:Q', axis=alt.Axis(labels=False, ticks=False, tickRound=True, axis=alt.Axis(format="~s")),
+            x=alt.X('distance:Q', axis=alt.Axis(labels=False, ticks=False, tickRound=True),
                     title='',
                     scale=alt.Scale(domain=(0, max(chart_maxspeed.data.distance)), clamp=True, nice=False))) \
         .properties(width=1000, height=50)
@@ -712,7 +749,7 @@ def plot_maxspeeds(maxspeed: DataFrame) -> alt.Chart:
                         axis=alt.Axis(format="~s")),
                 y=alt.Y('maxspeed:Q',
                         scale=alt.Scale(domain=(
-                            0, max(maxspeed_chart_data.maxspeed)))))
+                            0, 150))))
 
     return chart
 
