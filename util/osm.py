@@ -7,6 +7,7 @@ import urllib.request
 from shutil import which
 from typing import Optional, Union, Any
 
+import altair as alt
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -384,14 +385,14 @@ def finalize_osm(osm_data, trip_geom, filter_inactive: bool = True):
 
 
 def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float = 10., round_int: bool = True,
-                 min_length: Optional[float] = None):
+                 maxspeed_spikes_min_length: Optional[float] = 1000., maxspeed_if_all_null: float = 100.,
+                 maxspeed_null_segment_length=1000.):
     """
     Get dataframe of start_dist, end_dists, property value, for a given osm property. Merges adjacent sections with same
     value.
     
     Parameters
     ----------
-        
 
         osm_data : GeoDataFrame
             Columns start_point_distance, end_point_distance, prop [brunnel, electrified, maxspeed]
@@ -405,8 +406,15 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
             The OSM property. Accepted Values are "brunnel", "electrified" or "maxspeed"
         brunnel_filter_length
             ignores brunnels that are smaller than this length
-        round_int
+        round_int : bool
             return ints not floats for start_dist, end_dist, maxspeed
+        maxspeed_spikes_min_length : float or None
+            The minimum length of maxspeed spikes. Should be larger than train length.
+        maxspeed_if_all_null : float
+            The maxspead that is set if there are 0 maxspeeds present
+        maxspeed_null_segment_length : float
+            For Segments of nan values longer than this, the maxspeed is set to the median of the trip maxspeed.
+
     Returns
     -------
     
@@ -423,14 +431,86 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
     elif prop == "maxspeed":
         if 'maxspeed_forward' in osm_prop_data.columns:
             # if maxspeed not specified take maxspeed forward
-            osm_prop_data["maxspeed"] = np.where(np.isnan(osm_prop_data["maxspeed"]), osm_prop_data["maxspeed_forward"],
-                                                 osm_prop_data["maxspeed"])
+            # if maxspeed and maxspeed forward not specified take maxspeed backward
+            osm_prop_data[prop] = np.where(np.isnan(osm_prop_data[prop]), osm_prop_data["maxspeed_forward"],
+                                           osm_prop_data[prop])
+
+            if 'maxspeed_backward' in osm_prop_data.columns:
+                osm_prop_data[prop] = np.where(np.isnan(osm_prop_data[prop]),
+                                               osm_prop_data["maxspeed_backward"],
+                                               osm_prop_data[prop])
+
+        # if all nans, set maxspeed 100
+        if osm_prop_data[prop].isnull().all():
+            osm_prop_data[prop] = maxspeed_if_all_null
+
+        # check for long segments with nans. set long segments to median maxspeed of trip
+        # - calculate nan segment lengths
+        # - create a list of segments where a segment has start, end, and list of indexes of elements that belong to the
+        # segment
+        # - for all indexes that are in segments that are longer than maxspeed_null_segment_length, set to median speed
+
+        class Segment:
+            start = None
+            end = None
+            length = None
+            members = []
+
+        segments = []
+
+        current_segment = None
+        segment_open = False
+        segment_end_candidate = None
+        for index, row in osm_prop_data.iterrows():
+
+            # if nan
+            if pd.isnull(row[prop]):
+
+                # save the start_dist if new segment
+                if not segment_open:
+                    current_segment = Segment()
+                    current_segment.start = row["start_point_distance"]
+
+                current_segment.members.append(index)
+                segment_end_candidate = row["end_point_distance"]
+                segment_open = True
+
+            else:
+                # add end value
+                if segment_open:
+                    current_segment.end = segment_end_candidate
+                    current_segment.length = current_segment.end - current_segment.start
+                    segments.append(current_segment)
+
+                # close the segment
+                segment_open = False
+
+        # close segment if still open
+        if segment_open:
+            current_segment.end = segment_end_candidate
+            current_segment.length = current_segment.end - current_segment.start
+            segments.append(current_segment)
+
+        # go through segments. if a segment is long then set all maxspeeds to median of trip
+        median_maxspeed = osm_prop_data[prop].median()
+        for segment in segments:
+            if segment.length > maxspeed_null_segment_length:
+                osm_prop_data.loc[segment.members, prop] = median_maxspeed
+
         # filter nans
         osm_prop_data = osm_prop_data[~np.isnan(osm_prop_data.maxspeed)]
 
     elif prop == "electrified":
+
+        # if all unknown set to not electrified
+        if (osm_prop_data[prop] == "unknown").all():
+            osm_prop_data[prop] = "no"
+
         # filter unknown
         osm_prop_data = osm_prop_data[osm_prop_data.electrified != "unknown"]
+
+    # reset index because removed elements
+    osm_prop_data.reset_index(drop=True, inplace=True)
 
     # create new dataframe with values
     # start_distance, end_distance, prop_value
@@ -478,8 +558,37 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
 
         # props["brunnel"] = np.where(props.bridge == "yes", "bridge", "tunnel")
     elif prop == "electrified":
+
+        # set unknown to not electrified
         props["electrified"] = np.where(props.electrified == "yes", 1, 0)
         props["electrified"] = props["electrified"].astype(int)
+
+    elif prop == "maxspeed":
+
+        if maxspeed_spikes_min_length is not None:
+
+            # filter maxspeed segments that are small and are "spikes" e.g. that are higher than their neighbours.
+
+            # removing the spikes can lead to more spikes, so we hae to repeat until there are no more spikes
+            changed = True
+            while changed:
+
+                changed = False
+                drop_idx = []
+                for i in range(1, props.shape[0] - 1):
+
+                    # segment length is calculated only from the start dists
+                    segment_length = props.iloc[i + 1]["start_dist"] - props.iloc[i]["start_dist"]
+
+                    if segment_length < maxspeed_spikes_min_length \
+                            and props.iloc[i - 1][prop] < props.iloc[i][prop] > props.iloc[i + 1][prop]:
+                        # remove the row and extend the previous segment
+                        drop_idx.append(i)
+                        props.iloc[i - 1]["end_dist"] += segment_length
+                        changed = True
+
+                props.drop(drop_idx, inplace=True)
+                props.reset_index(drop=True, inplace=True)
 
     if round_int:
         props["start_dist"] = np.rint(props["start_dist"]).astype(int)
@@ -534,7 +643,110 @@ def osm_railways_to_psql(geofabrik_pbf: str, database="liniendatenbank", user="p
     return
 
 
-def plot(osm_data: GeoDataFrame, prop: Optional[str] = None, dem: Optional[DEM] = None):
+# TODO put plots in separate file
+def plot(osm_data: GeoDataFrame, prop: Optional[str] = None, dem: Optional[DEM] = None) -> alt.Chart:
+    chart = None
+    if prop == "maxspeed":
+        maxspeed = get_osm_prop(osm_data, "maxspeed")
+
+        chart = plot_maxspeeds(maxspeed)
+
+    return chart
 
 
+def plot_trip_props(maxspeed, electrified, elevation):
+    chart_maxspeed = plot_maxspeeds(maxspeed)
+    # chart_electrified = plot_electrified(electrified)
+    chart_elevation = plot_elevation(elevation)
+
+    chart_maxspeed = chart_maxspeed \
+        .encode(
+            x=alt.X('distance:Q', axis=alt.Axis(labels=False, ticks=False, tickRound=True, axis=alt.Axis(format="~s")),
+                    title='',
+                    scale=alt.Scale(domain=(0, max(chart_maxspeed.data.distance)), clamp=True, nice=False))) \
+        .properties(width=1000, height=50)
+
+    chart_elevation = chart_elevation.properties(width=1000, height=50)
+
+    return chart_maxspeed & chart_elevation
+
+
+def plot_maxspeeds(maxspeed: DataFrame) -> alt.Chart:
+    """
+
+    Parameters
+    ----------
+    maxspeed : DataFrame
+        cols start_dist, maxspeed must be present
+
+    Returns
+    -------
+
+    """
+    maxspeeds = []
+    start_dists = []
+
+    # plot horizontal lines: duplicate the values and add start and end for the x values
+    for i in range(maxspeed.shape[0] - 1):
+        maxspeeds.append(maxspeed.iloc[i]["maxspeed"])
+        maxspeeds.append(maxspeed.iloc[i]["maxspeed"])
+
+        start_dists.append(maxspeed.iloc[i]["start_dist"])
+        start_dists.append(maxspeed.iloc[i + 1]["start_dist"])
+
+    # for last value add end_dist as end
+    maxspeeds.append(maxspeed.iloc[-1]["maxspeed"])
+    start_dists.append(maxspeed.iloc[-1]["start_dist"])
+    maxspeeds.append(maxspeed.iloc[-1]["maxspeed"])
+    start_dists.append(maxspeed.iloc[-1]["end_dist"])
+
+    maxspeed_chart_data = pd.DataFrame({"maxspeed": maxspeeds, "distance": start_dists})
+
+    chart = alt.Chart(maxspeed_chart_data) \
+        .mark_line() \
+        .encode(x=alt.X('distance:Q',
+                        scale=alt.Scale(
+                            domain=(0, max(maxspeed_chart_data.distance)),
+                            clamp=True,
+                            nice=False),
+                        axis=alt.Axis(format="~s")),
+                y=alt.Y('maxspeed:Q',
+                        scale=alt.Scale(domain=(
+                            0, max(maxspeed_chart_data.maxspeed)))))
+
+    return chart
+
+
+def plot_elevation(elevation: DataFrame) -> alt.Chart:
+    """
+
+    Parameters
+    ----------
+    elevation : DataFrame
+        columns 'distance', 'elevation' and 'ele_smoothed' must be present
+
+    Returns
+    -------
+
+    """
+
+    chart = alt.Chart(elevation) \
+                .mark_line(color='#ccc') \
+                .encode(
+        x=alt.X('distance:Q',
+                axis=alt.Axis(format="~s"),
+                scale=alt.Scale(
+                    domain=(0, max(elevation.distance)),
+                    clamp=True,
+                    nice=False)),
+        y=alt.Y('elevation:Q',
+                title='elevation',
+                scale=alt.Scale(
+                    domain=(0, max(elevation.elevation) - 50)))) \
+            + alt.Chart(elevation).mark_line().encode(x='distance:Q', y='ele_smoothed:Q')
+
+    return chart
+
+
+def plot_electrified(electrified):
     return

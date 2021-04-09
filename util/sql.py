@@ -217,6 +217,11 @@ def sql_get_timetable(trip_id: int, engine: Engine, min_stop_duration: float = 3
 
     time_table["driving_time"] = driving_time
 
+    # delete rows where driving time to next station is 0 (except last row)
+    keep = time_table["driving_time"] != 0
+    keep[-1] = True
+    time_table = time_table[keep]
+
     if round_int:
         time_table["dist"] = np.rint(time_table["dist"]).astype(int)
         time_table["stop_duration"] = np.rint(time_table["stop_duration"]).astype(int)

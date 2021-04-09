@@ -16,7 +16,8 @@ setup(name='util',
           'pyproj',
           'shapely',
           'xlsxwriter',
-          'folium'
+          'folium',
+          'altair'
           # 'ElevationSampler @ https://github.com/tschopo/elevation_profile/blob/main/dist/ElevationSampler-1.0.tar.gz'
       ],
       zip_safe=True)
