@@ -245,7 +245,7 @@ def trip_title_to_filename(title: str) -> str:
 
 
 def write_input_sheet(trip_title: str, timetable: DataFrame, electrification: DataFrame, max_speed: DataFrame,
-                      inclination: DataFrame, params: Optional[Dict] = None, folder: Optional[str] = None) -> int:
+                      inclination: DataFrame, params: Optional[Dict] = None, folder: Optional[str] = None) -> str:
     """
 
     Parameters
@@ -289,11 +289,13 @@ def write_input_sheet(trip_title: str, timetable: DataFrame, electrification: Da
         default_params.update(params)
 
     filename = trip_title_to_filename(trip_title)
-
+    basename = filename
     if folder is not None:
-        filename = folder + '/' + filename
+        filename = folder + '/' + filename + '.xlsx'
+    else:
+        filename = filename + '.xlsx'
 
-    writer = pd.ExcelWriter(filename + '.xlsx', engine='xlsxwriter')
+    writer = pd.ExcelWriter(filename, engine='xlsxwriter')
 
     # we first need to write a dataframe, to get the sheets later
 
@@ -436,4 +438,4 @@ def write_input_sheet(trip_title: str, timetable: DataFrame, electrification: Da
 
     writer.save()
 
-    return 0
+    return basename
