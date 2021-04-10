@@ -5,9 +5,10 @@ import os
 import re
 import urllib.request
 from shutil import which
-from typing import Optional, Union, Any
+from typing import Optional, Union, Any, List
 
 import altair as alt
+import folium
 import geopandas as gpd
 import numpy as np
 import pandas as pd
@@ -608,7 +609,6 @@ def spatial_median(osm_data, prop="maxspeed"):
 
     Parameters
     ----------
-    gdf
 
     Returns
     -------
@@ -685,32 +685,93 @@ def plot_osm(osm_data: GeoDataFrame, prop: Optional[str] = None, dem: Optional[D
     -------
 
     """
+    osm_data_map = osm_data.to_crs(4326)
+
     if prop == "maxspeed":
-        return
 
-    return
+        # pep doesnt like lambdas
+        def colormap(x):
+            return '#aaa'
+
+        if not osm_data_map['maxspeed'].isna().all():
+            colormap = folium.LinearColormap(colors=["red", "orange", "yellow", "green"],
+                                             vmin=osm_data_map['maxspeed'].min(),
+                                             vmax=osm_data_map['maxspeed'].max()).to_step(
+                n=len(osm_data_map["maxspeed"].unique()))
+        osm_data_map['maxspeed'] = osm_data_map['maxspeed'].fillna(-9999)
+    elif prop == "electrified":
+
+        def colormap(x):
+            if x == 0:
+                return '#d62728'
+            elif x == 1:
+                return '#2ca02c'
+            else:
+                return '#aaa'
+
+        osm_data_map['electrified'] = np.where(osm_data_map['electrified'] == 'yes', 1, osm_data_map['electrified'])
+        osm_data_map['electrified'] = np.where(osm_data_map['electrified'] == 'no', 0, osm_data_map['electrified'])
+        osm_data_map['electrified'] = np.where((osm_data_map['electrified'] == 1) | (osm_data_map['electrified'] == 0),
+                                               osm_data_map['electrified'], -9999)
+
+    osm_json = osm_data_map[
+        ["electrified", "maxspeed", "maxspeed_forward", "maxspeed_backward", "bridge", "tunnel", "geom",
+         "start_point_distance", "end_point_distance"]].to_json(na='keep')
+
+    m = folium.Map(location=[osm_data_map.total_bounds[[1, 3]].mean(), osm_data_map.total_bounds[[0, 2]].mean()],
+                   # tiles='Stamen Terrain',
+                   zoom_start=9)
+
+    folium.GeoJson(osm_json, name="geojson",
+                   style_function=lambda x: {
+                       'color': colormap(x['properties'][prop]) if x['properties'][prop] >= 0 else '#aaa',
+                       'weight': 2.5
+                   },
+                   tooltip=folium.features.GeoJsonTooltip(
+                       fields=['maxspeed', 'maxspeed_forward', 'maxspeed_backward', 'electrified',
+                               'start_point_distance', 'end_point_distance'],
+                       # aliases=['Max Speed', 'Electrified'],
+                       labels=True,
+                       sticky=True,
+                       toLocaleString=True)
+                   ).add_to(m)
+
+    return m
 
 
-def plot_trip_props(maxspeed, electrified, elevation, trip_title):
-    # ideas: add station names
+def plot_trip_props(maxspeed, electrified, elevation, trip_title, color_monotone=None):
+    # ideas: add stations to elevation and maxspeed (points on the line)
+    # add timetable plot (like electrified, with station names and color is the duration between the stations?)
     # interactivity: scrolling, zooming, highlighting
     # add geometry, linked circle of cursor position on all plots
 
-    chart_maxspeed = plot_maxspeeds(maxspeed)
-    chart_electrified = plot_electrified(electrified)
-    chart_elevation = plot_elevation(elevation)
+    maxspeed_color = None
+    electrified_color = None
+    not_electrified_color = None
+    elevation_color = None
+    if color_monotone is not None:
+        maxspeed_color = color_monotone
+        electrified_color = color_monotone
+        not_electrified_color = '#ccc'
+        elevation_color = color_monotone
+
+    chart_maxspeed = plot_maxspeeds(maxspeed, color=maxspeed_color)
+    chart_electrified = plot_electrified(electrified, electrified_color=electrified_color,
+                                         not_electrified_color=not_electrified_color)
+    chart_elevation = plot_elevation(elevation, color=elevation_color)
 
     chart_maxspeed = chart_maxspeed \
         .encode(
-            x=alt.X('distance:Q', axis=alt.Axis(labels=False, ticks=False, tickRound=True),
-                    title='',
-                    scale=alt.Scale(domain=(0, max(chart_maxspeed.data.distance)), clamp=True, nice=False))) \
+        x=alt.X('distance:Q', axis=alt.Axis(labels=False, ticks=False, tickRound=True),
+                title='',
+                scale=alt.Scale(domain=(0, max(chart_maxspeed.data.distance)), clamp=True, nice=False))) \
         .properties(width=1000, height=100)
 
     chart_electrified = chart_electrified.encode(x=alt.X('distance:Q', axis=None,
-                                     title='',
-                                     scale=alt.Scale(domain=(0, max(electrified.end_dist)), clamp=True,
-                                                     nice=False))).properties(width=1000, height=10)
+                                                         title='',
+                                                         scale=alt.Scale(domain=(0, max(electrified.end_dist)),
+                                                                         clamp=True,
+                                                                         nice=False))).properties(width=1000, height=6)
 
     chart_elevation = chart_elevation.properties(width=1000, height=100)
 
@@ -723,7 +784,7 @@ def plot_trip_props(maxspeed, electrified, elevation, trip_title):
     return chart
 
 
-def plot_maxspeeds(maxspeed: DataFrame) -> alt.Chart:
+def plot_maxspeeds(maxspeed: DataFrame, color=None) -> alt.Chart:
     """
 
     Parameters
@@ -754,9 +815,11 @@ def plot_maxspeeds(maxspeed: DataFrame) -> alt.Chart:
 
     maxspeed_chart_data = pd.DataFrame({"maxspeed": maxspeeds, "distance": start_dists})
 
-    #ff7f00
+    # ff7f00
+    if color is None:
+        color = '#377eb8'
     chart = alt.Chart(maxspeed_chart_data) \
-        .mark_line(color='#377eb8') \
+        .mark_line(color=color) \
         .encode(x=alt.X('distance:Q',
                         scale=alt.Scale(
                             domain=(0, max(maxspeed_chart_data.distance)),
@@ -766,12 +829,12 @@ def plot_maxspeeds(maxspeed: DataFrame) -> alt.Chart:
                 y=alt.Y('maxspeed:Q',
                         scale=alt.Scale(domain=(
                             0, 150)))
-    )
+                )
 
     return chart
 
 
-def plot_elevation(elevation: DataFrame) -> alt.Chart:
+def plot_elevation(elevation: DataFrame, color: Optional[str] = None) -> alt.Chart:
     """
 
     Parameters
@@ -783,6 +846,8 @@ def plot_elevation(elevation: DataFrame) -> alt.Chart:
     -------
 
     """
+    if color is None:
+        color = '#a65628'
 
     chart = alt.Chart(elevation) \
                 .mark_line(color='#ccc') \
@@ -796,18 +861,24 @@ def plot_elevation(elevation: DataFrame) -> alt.Chart:
         y=alt.Y('elevation:Q',
                 title='elevation',
                 scale=alt.Scale(
-                    domain=(max(0, min(elevation.elevation) - 50), max(elevation.elevation) * 0.9)))) \
-            + alt.Chart(elevation).mark_line(color='#a65628').encode(x='distance:Q', y='ele_smoothed:Q')
+                    domain=(max(0, min(elevation.elevation) - 50), max(elevation.elevation) * 0.85)))) \
+            + alt.Chart(elevation).mark_line(color=color).encode(x='distance:Q', y='ele_smoothed:Q')
 
     return chart
 
 
-def plot_electrified(electrified):
+def plot_electrified(electrified: DataFrame, electrified_color: Optional[str] = None,
+                     not_electrified_color: Optional[str] = None):
     data = {'y': ['electrified'] * electrified.shape[0],
             'electrified': np.where(electrified.electrified.values == 1, 'yes', 'no'),
             'distance': electrified.end_dist - electrified.start_dist, 'start_dist': electrified.start_dist}
-
     df = pd.DataFrame(data)
+
+    if not_electrified_color is None:
+        not_electrified_color = '#ccc'  # '#e41a1c'
+    if electrified_color is None:
+        electrified_color = '#4daf4a'
+
     chart = alt.Chart(df).mark_bar().encode(
         y=alt.Y('y:N', axis=alt.Axis(title='', labels=False, ticks=False)),
         x=alt.X('distance:Q',
@@ -819,7 +890,7 @@ def plot_electrified(electrified):
         color=alt.Color('electrified:N',
                         scale=alt.Scale(
                             domain=['yes', 'no'],
-                            range=['#4daf4a', '#e41a1c'])),
+                            range=[electrified_color, not_electrified_color])),
         order=alt.Order(
             # Sort the segments of the bars by this field
             'start_dist',
