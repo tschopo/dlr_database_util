@@ -5,7 +5,7 @@ import os
 import re
 import urllib.request
 from shutil import which
-from typing import Optional, Union, Any, List
+from typing import Optional, Union, Any
 
 import altair as alt
 import folium
@@ -739,7 +739,7 @@ def plot_osm(osm_data: GeoDataFrame, prop: Optional[str] = None, dem: Optional[D
     return m
 
 
-def plot_trip_props(maxspeed, electrified, elevation, trip_title, color_monotone=None):
+def plot_trip_props(maxspeed, electrified, elevation_background, elevation_smoothed, trip_title, color_monotone=None):
     # ideas: add stations to elevation and maxspeed (points on the line)
     # add timetable plot (like electrified, with station names and color is the duration between the stations?)
     # interactivity: scrolling, zooming, highlighting
@@ -758,7 +758,7 @@ def plot_trip_props(maxspeed, electrified, elevation, trip_title, color_monotone
     chart_maxspeed = plot_maxspeeds(maxspeed, color=maxspeed_color)
     chart_electrified = plot_electrified(electrified, electrified_color=electrified_color,
                                          not_electrified_color=not_electrified_color)
-    chart_elevation = plot_elevation(elevation, color=elevation_color)
+    chart_elevation = plot_elevation(elevation_background, elevation_smoothed, color=elevation_color)
 
     chart_maxspeed = chart_maxspeed \
         .encode(
@@ -834,13 +834,16 @@ def plot_maxspeeds(maxspeed: DataFrame, color=None) -> alt.Chart:
     return chart
 
 
-def plot_elevation(elevation: DataFrame, color: Optional[str] = None) -> alt.Chart:
+def plot_elevation(elevation_background: DataFrame, elevation_smoothed: DataFrame, color: Optional[str] = None) -> alt.Chart:
     """
 
     Parameters
     ----------
+    elevation_background : DataFrame
+        columns 'distance', 'elevation'
+
     elevation : DataFrame
-        columns 'distance', 'elevation' and 'ele_smoothed' must be present
+        columns 'distance', 'elevation'
 
     Returns
     -------
@@ -849,20 +852,24 @@ def plot_elevation(elevation: DataFrame, color: Optional[str] = None) -> alt.Cha
     if color is None:
         color = '#a65628'
 
-    chart = alt.Chart(elevation) \
+    min_ele = max(0, min(elevation_background.elevation) - 50)
+    max_ele = max(elevation_background.elevation)
+    max_ele = max_ele - ((max_ele-min_ele) * 0.2)
+
+    chart = alt.Chart(elevation_background) \
                 .mark_line(color='#ccc') \
                 .encode(
         x=alt.X('distance:Q',
                 axis=alt.Axis(format="~s"),
                 scale=alt.Scale(
-                    domain=(0, max(elevation.distance)),
+                    domain=(0, max(elevation_background.distance)),
                     clamp=True,
                     nice=False)),
         y=alt.Y('elevation:Q',
                 title='elevation',
                 scale=alt.Scale(
-                    domain=(max(0, min(elevation.elevation) - 50), max(elevation.elevation) * 0.85)))) \
-            + alt.Chart(elevation).mark_line(color=color).encode(x='distance:Q', y='ele_smoothed:Q')
+                    domain=(min_ele, max_ele)))) \
+        + alt.Chart(elevation_smoothed).mark_line(color=color).encode(x='distance:Q', y='elevation:Q')
 
     return chart
 

@@ -16,9 +16,14 @@ def process_ele(elevation: ndarray, distances: ndarray, brunnels: DataFrame, fir
                 smooth_after_resampling: bool = True, window_size_2: int = 21, poly_order_2: int = 1,
                 mode: str = "nearest", adjust_forest_height: bool = True, adjust_method: str = "minimum",
                 minimum_loops: int = 1, double_adjust: bool = True, drop_last_incl_if_high: bool = True,
-                last_incl_thresh: float = 10., last_incl_dist: float = 100.) -> Tuple[DataFrame, DataFrame, DataFrame]:
+                last_incl_thresh: float = 10., last_incl_dist: float = 100., min_ele: float = -3, max_ele: float = 2962.) -> Tuple[DataFrame, DataFrame, DataFrame]:
 
     distances, elevation = np.array(distances), np.array(elevation)
+
+    # filter unrealistic values
+    keep = (elevation > min_ele) & (elevation < max_ele)
+    elevation = elevation[keep]
+    distances = distances[keep]
 
     elevation_profile = ElevationProfile(distances, elevation)
 
@@ -240,7 +245,7 @@ def trip_title_to_filename(title: str) -> str:
 
 
 def write_input_sheet(trip_title: str, timetable: DataFrame, electrification: DataFrame, max_speed: DataFrame,
-                      inclination: DataFrame, params: Optional[Dict] = None) -> int:
+                      inclination: DataFrame, params: Optional[Dict] = None, folder: Optional[str] = None) -> int:
     """
 
     Parameters
@@ -284,6 +289,9 @@ def write_input_sheet(trip_title: str, timetable: DataFrame, electrification: Da
         default_params.update(params)
 
     filename = trip_title_to_filename(trip_title)
+
+    if folder is not None:
+        filename = folder + '/' + filename
 
     writer = pd.ExcelWriter(filename + '.xlsx', engine='xlsxwriter')
 
