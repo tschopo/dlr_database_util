@@ -570,7 +570,7 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
 
             # filter maxspeed segments that are small and are "spikes" e.g. that are higher than their neighbours.
 
-            # removing the spikes can lead to more spikes, so we hae to repeat until there are no more spikes
+            # removing the spikes can lead to more spikes, so we have to repeat until there are no more spikes
             changed = True
             while changed:
 
@@ -691,9 +691,13 @@ def plot_osm(osm_data: GeoDataFrame, prop: Optional[str] = None, dem: Optional[D
     return
 
 
-def plot_trip_props(maxspeed, electrified, elevation):
+def plot_trip_props(maxspeed, electrified, elevation, trip_title):
+    # ideas: add station names
+    # interactivity: scrolling, zooming, highlighting
+    # add geometry, linked circle of cursor position on all plots
+
     chart_maxspeed = plot_maxspeeds(maxspeed)
-    # chart_electrified = plot_electrified(electrified)
+    chart_electrified = plot_electrified(electrified)
     chart_elevation = plot_elevation(elevation)
 
     chart_maxspeed = chart_maxspeed \
@@ -701,11 +705,22 @@ def plot_trip_props(maxspeed, electrified, elevation):
             x=alt.X('distance:Q', axis=alt.Axis(labels=False, ticks=False, tickRound=True),
                     title='',
                     scale=alt.Scale(domain=(0, max(chart_maxspeed.data.distance)), clamp=True, nice=False))) \
-        .properties(width=1000, height=50)
+        .properties(width=1000, height=100)
 
-    chart_elevation = chart_elevation.properties(width=1000, height=50)
+    chart_electrified = chart_electrified.encode(x=alt.X('distance:Q', axis=None,
+                                     title='',
+                                     scale=alt.Scale(domain=(0, max(electrified.end_dist)), clamp=True,
+                                                     nice=False))).properties(width=1000, height=10)
 
-    return chart_maxspeed & chart_elevation
+    chart_elevation = chart_elevation.properties(width=1000, height=100)
+
+    chart = chart_electrified & chart_maxspeed & chart_elevation
+    chart = chart.properties(title=trip_title).configure_title(
+        align='center',
+        anchor='middle',
+        offset=30)
+
+    return chart
 
 
 def plot_maxspeeds(maxspeed: DataFrame) -> alt.Chart:
@@ -739,8 +754,9 @@ def plot_maxspeeds(maxspeed: DataFrame) -> alt.Chart:
 
     maxspeed_chart_data = pd.DataFrame({"maxspeed": maxspeeds, "distance": start_dists})
 
+    #ff7f00
     chart = alt.Chart(maxspeed_chart_data) \
-        .mark_line() \
+        .mark_line(color='#377eb8') \
         .encode(x=alt.X('distance:Q',
                         scale=alt.Scale(
                             domain=(0, max(maxspeed_chart_data.distance)),
@@ -749,7 +765,8 @@ def plot_maxspeeds(maxspeed: DataFrame) -> alt.Chart:
                         axis=alt.Axis(format="~s")),
                 y=alt.Y('maxspeed:Q',
                         scale=alt.Scale(domain=(
-                            0, 150))))
+                            0, 150)))
+    )
 
     return chart
 
@@ -779,11 +796,34 @@ def plot_elevation(elevation: DataFrame) -> alt.Chart:
         y=alt.Y('elevation:Q',
                 title='elevation',
                 scale=alt.Scale(
-                    domain=(0, max(elevation.elevation) - 50)))) \
-            + alt.Chart(elevation).mark_line().encode(x='distance:Q', y='ele_smoothed:Q')
+                    domain=(max(0, min(elevation.elevation) - 50), max(elevation.elevation) * 0.9)))) \
+            + alt.Chart(elevation).mark_line(color='#a65628').encode(x='distance:Q', y='ele_smoothed:Q')
 
     return chart
 
 
 def plot_electrified(electrified):
-    return
+    data = {'y': ['electrified'] * electrified.shape[0],
+            'electrified': np.where(electrified.electrified.values == 1, 'yes', 'no'),
+            'distance': electrified.end_dist - electrified.start_dist, 'start_dist': electrified.start_dist}
+
+    df = pd.DataFrame(data)
+    chart = alt.Chart(df).mark_bar().encode(
+        y=alt.Y('y:N', axis=alt.Axis(title='', labels=False, ticks=False)),
+        x=alt.X('distance:Q',
+                axis=alt.Axis(format="~s"),
+                scale=alt.Scale(
+                    domain=(0, max(electrified.end_dist)),
+                    clamp=True,
+                    nice=False)),
+        color=alt.Color('electrified:N',
+                        scale=alt.Scale(
+                            domain=['yes', 'no'],
+                            range=['#4daf4a', '#e41a1c'])),
+        order=alt.Order(
+            # Sort the segments of the bars by this field
+            'start_dist',
+            sort='ascending'
+        )
+    )
+    return chart
