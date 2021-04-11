@@ -1,10 +1,10 @@
 import re
 from typing import Tuple, Dict, Optional
-
 import numpy as np
 import pandas as pd
 from ElevationSampler import ElevationProfile
 from numpy import ndarray
+from openpyxl import load_workbook
 from pandas import DataFrame
 
 
@@ -16,7 +16,8 @@ def process_ele(elevation: ndarray, distances: ndarray, brunnels: DataFrame, fir
                 smooth_after_resampling: bool = True, window_size_2: int = 21, poly_order_2: int = 1,
                 mode: str = "nearest", adjust_forest_height: bool = True, adjust_method: str = "minimum",
                 minimum_loops: int = 1, double_adjust: bool = True, drop_last_incl_if_high: bool = True,
-                last_incl_thresh: float = 10., last_incl_dist: float = 100., min_ele: float = -3, max_ele: float = 2962.) -> Tuple[DataFrame, DataFrame, DataFrame]:
+                last_incl_thresh: float = 10., last_incl_dist: float = 100., min_ele: float = -3,
+                max_ele: float = 2962.) -> Tuple[DataFrame, DataFrame, DataFrame]:
 
     distances, elevation = np.array(distances), np.array(elevation)
 
@@ -244,16 +245,17 @@ def trip_title_to_filename(title: str) -> str:
     return filename
 
 
-def write_input_sheet(trip_title: str, timetable: DataFrame, electrification: DataFrame, max_speed: DataFrame,
-                      inclination: DataFrame, params: Optional[Dict] = None, folder: Optional[str] = None) -> str:
+def write_sensor_input_sheet(trip_title: str, timetable: DataFrame, electrified: DataFrame, maxspeed: DataFrame,
+                             inclination: DataFrame, params: Optional[Dict] = None,
+                             folder: Optional[str] = None) -> str:
     """
 
     Parameters
     ----------
     trip_title
     timetable
-    electrification
-    max_speed
+    electrified
+    maxspeed
     inclination
     params : dict
         sheet1 : "Timetable and limits",
@@ -266,6 +268,8 @@ def write_input_sheet(trip_title: str, timetable: DataFrame, electrification: Da
         gradient_interpolation_binary : 0
         effort_in_curve : 8
         resistances_kp : "normal"
+    folder : str
+        the output folder
 
     Returns
     -------
@@ -329,10 +333,10 @@ def write_input_sheet(trip_title: str, timetable: DataFrame, electrification: Da
     current_row += 1
 
     # electrification
-    electrification[["start_dist", "electrified"]].to_excel(writer, sheet_name=default_params['sheet1'], index=False,
-                                                            header=False, startrow=current_row)
+    electrified[["start_dist", "electrified"]].to_excel(writer, sheet_name=default_params['sheet1'], index=False,
+                                                        header=False, startrow=current_row)
 
-    current_row += electrification.shape[0]
+    current_row += electrified.shape[0]
 
     # electrification end
     worksheet.write(current_row, 0, "]end")
@@ -347,11 +351,10 @@ def write_input_sheet(trip_title: str, timetable: DataFrame, electrification: Da
     current_row += 1
 
     # maxspeed
-    max_speed[["start_dist", "maxspeed"]].to_excel(writer, sheet_name=default_params['sheet1'], index=False,
-                                                   header=False,
-                                                   startrow=current_row)
+    maxspeed[["start_dist", "maxspeed"]].to_excel(writer, sheet_name=default_params['sheet1'], index=False,
+                                                  header=False, startrow=current_row)
 
-    current_row += max_speed.shape[0]
+    current_row += maxspeed.shape[0]
 
     # maxspeed end
     worksheet.write(current_row, 0, "]end")
@@ -439,3 +442,134 @@ def write_input_sheet(trip_title: str, timetable: DataFrame, electrification: Da
     writer.save()
 
     return basename
+
+
+def write_tpt_input_sheet(template_file: str, trip_title: str, timetable: DataFrame, electrified: DataFrame,
+                          maxspeed: DataFrame, inclination: DataFrame, folder: Optional[str] = None) -> str:
+    """
+
+    Parameters
+    ----------
+    template_file : str
+        the path to a tpt template .xlsx file
+        in the template the rows must be cleared (see example template file in this module)
+    trip_title
+    timetable
+    electrified
+    maxspeed
+    inclination
+    folder : str
+        the output folder
+
+    Returns
+    -------
+
+    """
+
+    filename = trip_title_to_filename(trip_title)
+    basename = filename
+    if folder is not None:
+        filename = folder + '/' + filename + '.xlsx'
+    else:
+        filename = filename + '.xlsx'
+
+    wb = load_workbook(filename=template_file)
+
+    # connect pandas writer with the workbook
+    writer = pd.ExcelWriter(template_file, engine='openpyxl')
+    writer.book = wb
+
+    writer.sheets = dict((ws.title, ws) for ws in wb.worksheets)
+
+    ws = wb['driving']
+
+    # timetable
+    start_row, end_row = _get_table_row_boundaries(ws, "]stations_middle_kp(m)_(S/P)_t(s)_name(text)")
+    start_row += 1
+
+    # delete old timetable data
+    ws.delete_rows(start_row, end_row - start_row)
+
+    # write timetable
+    # first insert the correct number of rows
+    ws.insert_rows(start_row, timetable.shape[0])
+
+    # make timetable the correct format
+    timetable["s"] = "s"
+    timetable = timetable[["dist", "s", "stop_duration", "stop_name", "driving_time"]]
+    timetable.to_excel(writer, "driving", startrow=start_row - 1, header=False, index=False)
+
+    # maxspeed
+    start_row, end_row = _get_table_row_boundaries(ws, "]max_speeds_head_and_tail_kp(m)_v(km/h)")
+    start_row += 1
+
+    # delete old maxspeed data
+    ws.delete_rows(start_row, end_row - start_row)
+
+    # write maxspeed
+    # first insert the correct number of rows
+    ws.insert_rows(start_row, maxspeed.shape[0])
+
+    # make maxspeed the correct format
+    maxspeed = maxspeed[["start_dist", "maxspeed"]]
+    maxspeed.to_excel(writer, "driving", startrow=start_row - 1, header=False, index=False)
+
+    ws = wb['line']
+
+    # title
+    ws['B1'] = trip_title
+
+    #
+    #  electrified
+    start_row, end_row = _get_table_row_boundaries(ws, "]electrification_kp(m)_binary_link(0,1)")
+    start_row += 1
+
+    # delete old electrified data
+    ws.delete_rows(start_row, end_row - start_row)
+
+    # write electrified
+    # first insert the correct number of rows
+    ws.insert_rows(start_row, electrified.shape[0])
+
+    # make electrified the correct format
+    electrified = electrified[["start_dist", "electrified"]]
+    electrified.to_excel(writer, "line", startrow=start_row - 1, header=False, index=False)
+
+    #
+    #  inclination
+    start_row, end_row = _get_table_row_boundaries(ws, "]gradients_kp(m)_g(o/oo)_link(0,1)")
+    start_row += 1
+
+    # delete old inclination data
+    ws.delete_rows(start_row, end_row - start_row)
+
+    # write inclination
+    # first insert the correct number of rows
+    ws.insert_rows(start_row, inclination.shape[0])
+
+    # make inclination the correct format
+    inclination["0"] = 0
+    inclination = inclination[["start_dist", "incl", "0"]]
+    inclination.to_excel(writer, "line", startrow=start_row - 1, header=False, index=False)
+
+    wb.save(filename)
+
+    return basename
+
+
+def _get_table_row_boundaries(ws, begin_token: str, end_token: str = "]end"):
+    start_row = None
+    end_row = None
+
+    # get the rows where table data is saved
+    in_section = False
+    for row in ws.iter_rows(min_col=0, max_col=0):
+        cell = row[0]
+        if cell.value == begin_token:
+            start_row = cell.row
+            in_section = True
+        if in_section and cell.value == end_token:
+            end_row = cell.row
+            break
+
+    return start_row, end_row

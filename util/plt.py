@@ -8,7 +8,6 @@ import altair as alt
 import folium
 import numpy as np
 import pandas as pd
-from ElevationSampler import DEM
 from geopandas import GeoDataFrame
 from pandas import DataFrame
 
