@@ -7,13 +7,10 @@ import urllib.request
 from shutil import which
 from typing import Optional, Union, Any
 
-import altair as alt
-import folium
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import pyproj
-from ElevationSampler import DEM
 from geopandas import GeoDataFrame, GeoSeries
 from pandas import DataFrame
 from shapely.geometry import LineString
@@ -129,12 +126,12 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
                   # 'embankment': str,
                   # 'cutting': str,
                   # 'ref': 'Int64',
-                  'gauge': np.float64,
+                  # 'gauge': np.float64,
                   'traffic_mode': str,  # passenger / mixed / freight
                   'service': str,
                   'usage': str,  # branch / main
-                  'voltage': np.float64,
-                  'frequency': np.float64,
+                  # 'voltage': np.float64,
+                  # 'frequency': np.float64,
                   }
 
     osm_data = osm_data.astype(new_dtypes)
@@ -277,7 +274,7 @@ def calc_distances(osm_data: GeoDataFrame, trip_geom: GeoSeries, geom_col: str =
     return osm_data
 
 
-def finalize_osm(osm_data, trip_geom, filter_inactive: bool = True):
+def finalize_osm(osm_data: GeoDataFrame, trip_geom, filter_inactive: bool = True):
     """
     Calculates overlapping segments along the trip geometry. Removes overlapping if they dont have status=active,
     or they are a service track.
@@ -288,6 +285,8 @@ def finalize_osm(osm_data, trip_geom, filter_inactive: bool = True):
     Parameters
     ----------
 
+    osm_data
+    trip_geom
     filter_inactive
         if True filters overlapping segments with status != active and service tracks
         if False then all overlapping segments are discarded. This leads to gaps in the data.
@@ -382,16 +381,22 @@ def finalize_osm(osm_data, trip_geom, filter_inactive: bool = True):
     # create new osm row where geom is missing segment, and values are computed from the osm segments
     # e.g. max(maxspeeds), tunnel = yes if any yes, bridge = yes if any yes, electrified = yes if any yes ...
 
+    # TODO add step harmomnize because there can still be overlapping segments: make that end_point is always
+    #  next.start_point. if overlapping then make both segments shorter, if missing segment, then make both segments
+    #  longer
+
     return osm_data
 
 
 def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float = 10., round_int: bool = True,
-                 maxspeed_spikes_min_length: Optional[float] = 1000., maxspeed_if_all_null: float = 100.,
-                 maxspeed_null_segment_length=1000.):
+                 maxspeed_spikes_min_length: Optional[float] = 250., maxspeed_if_all_null: float = 120.,
+                 maxspeed_null_segment_length=1000., maxspeed_min_if_null: float = 60.,
+                 trip_length: Optional[float] = None, harmonize_end_dists: bool = True,
+                 set_unknown_electrified_to_no: bool = True):
     """
     Get dataframe of start_dist, end_dists, property value, for a given osm property. Merges adjacent sections with same
     value.
-    
+
     Parameters
     ----------
 
@@ -415,6 +420,16 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
             The maxspead that is set if there are 0 maxspeeds present
         maxspeed_null_segment_length : float
             For Segments of nan values longer than this, the maxspeed is set to the median of the trip maxspeed.
+        maxspeed_min_if_null : float
+            For nan segments: if median of trip is below this value, set the nan segment to maxspeed_if_all_null
+        trip_length : float or None
+            Set the last end_dist to trip_length, so that align with trip, only for maxspeed an electrified
+        harmonize_end_dists : bool
+            if true, sets the end_dists to the start dist of next row, so that there are no gaps, only for maxspeed and
+            electrified
+        set_unknown_electrified_to_no : bool
+            if false, then unknown electrified are ignored, meaning that always the previous known value is used until
+            next known value. if true then unknown segments are set to "no"
 
     Returns
     -------
@@ -495,6 +510,10 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
         # go through segments. if a segment is long then set all maxspeeds to median of trip
         median_maxspeed = spatial_median(osm_prop_data)
 
+        # if the median is very low, set it to 100
+        if median_maxspeed < maxspeed_min_if_null:
+            median_maxspeed = maxspeed_if_all_null
+
         for segment in segments:
             if segment.length > maxspeed_null_segment_length:
                 osm_prop_data.loc[segment.members, prop] = median_maxspeed
@@ -509,7 +528,10 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
             osm_prop_data[prop] = "no"
 
         # filter unknown
-        osm_prop_data = osm_prop_data[osm_prop_data.electrified != "unknown"]
+        if set_unknown_electrified_to_no:
+            osm_prop_data[prop] = np.where(osm_data.electrified == "unknown", "no", osm_data.electrified)
+        else:
+            osm_prop_data = osm_prop_data[osm_prop_data.electrified != "unknown"]
 
     # reset index because removed elements
     osm_prop_data.reset_index(drop=True, inplace=True)
@@ -552,6 +574,14 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
     data = {prop: prop_vals, "start_dist": start_dists, "end_dist": end_dists}
     props = pd.DataFrame.from_dict(data)
 
+    # set end dist to trip length so that dists are aligned with trip length
+    if prop == "electrified" or prop == "maxspeed":
+        if trip_length is not None:
+            props.iloc[-1, props.columns.get_loc('end_dist')] = trip_length
+        if harmonize_end_dists:
+            props.iloc[0:-1, props.columns.get_loc('end_dist')] = props.iloc[1:,
+                                                                             props.columns.get_loc('start_dist')].values
+
     if prop == "brunnel":
         props = props[props.brunnel == "yes"]
 
@@ -561,7 +591,6 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
         # props["brunnel"] = np.where(props.bridge == "yes", "bridge", "tunnel")
     elif prop == "electrified":
 
-        # set unknown to not electrified
         props["electrified"] = np.where(props.electrified == "yes", 1, 0)
         props["electrified"] = props["electrified"].astype(int)
 
@@ -669,3 +698,86 @@ def osm_railways_to_psql(geofabrik_pbf: str, database="liniendatenbank", user="p
               + password)
     return
 
+
+def get_elevation_at_dist(elevation: DataFrame, dist: float) -> float:
+    """
+
+    Parameters
+    ----------
+    elevation
+        dataframe with distance and elevation columns
+    dist
+
+    Returns
+    -------
+
+    """
+    return np.interp(dist, elevation.distance, elevation.elevation)
+
+
+def get_maxspeed_at_dist(maxspeed: DataFrame, dist: float) -> Union[float, int]:
+    """
+
+    Parameters
+    ----------
+    maxspeed
+        dataframe with start_dist, end_dist and maxspeed columns
+    dist
+
+    Returns
+    -------
+
+    """
+    return maxspeed[(maxspeed.start_dist <= dist) & (maxspeed.end_dist >= dist)]["maxspeed"].iloc[0]
+
+
+def get_electrified_at_dist(electrified: DataFrame, dist: float) -> int:
+    """
+
+    Parameters
+    ----------
+    electrified
+        dataframe with start_dist, end_dist and electrified columns
+    dist
+
+    Returns
+    -------
+
+    """
+    return electrified[(electrified.start_dist <= dist) & (electrified.end_dist >= dist)]["electrified"].iloc[0]
+
+
+def resample_prop(prop_df: DataFrame, distances: np.ndarray, prop: str) -> DataFrame:
+    """
+
+    Parameters
+    ----------
+    prop_df
+        either elevation dataframe with "elevation" and "distance" or maxspeed dataframe with "maxspeed", "start_dist",
+        "end_dist" or electrified dataframe with "electrified", "start_dist", "end_dist"
+    distances
+    prop
+        either "elevation", "maxpeed" or "electrified"
+
+    Returns
+    -------
+
+    """
+    resampled_props = []
+    for distance in distances:
+        resampled_prop = None
+        if prop == "maxspeed":
+            resampled_prop = get_maxspeed_at_dist(prop_df, distance)
+        elif prop == "electrified":
+            resampled_prop = get_electrified_at_dist(prop_df, distance)
+        elif prop == "elevation":
+            resampled_prop = get_elevation_at_dist(prop_df, distance)
+
+        assert resampled_prop is not None
+
+        resampled_props.append(resampled_prop)
+
+    data = {"distance": distances, prop: resampled_props}
+    resampled_props = pd.DataFrame(data)
+
+    return resampled_props

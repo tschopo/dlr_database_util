@@ -1,5 +1,5 @@
 """
-Functions that interface with the OSM rail database as defined by the import script
+Functions for plotting trip data
 """
 
 from typing import Optional
@@ -20,7 +20,6 @@ def plot_osm(osm_data: GeoDataFrame, prop: Optional[str] = None):
     ----------
     osm_data
     prop
-    dem
 
     Returns
     -------
@@ -81,7 +80,7 @@ def plot_osm(osm_data: GeoDataFrame, prop: Optional[str] = None):
 
 
 def plot_trip_props(maxspeed, electrified, elevation_background, elevation_smoothed, trip_title, color_monotone=None,
-                    elevation_plot_height=100):
+                    elevation_plot_height=100, elevation_overshoot=0.15, interactive: bool = True):
     # ideas: add stations to elevation and maxspeed (points on the line)
     # add timetable plot (like electrified, with station names and color is the duration between the stations?)
     # interactivity: scrolling, zooming, highlighting
@@ -97,10 +96,14 @@ def plot_trip_props(maxspeed, electrified, elevation_background, elevation_smoot
         not_electrified_color = '#ccc'
         elevation_color = color_monotone
 
+    if interactive:
+        elevation_overshoot = 0
+
     chart_maxspeed = plot_maxspeeds(maxspeed, color=maxspeed_color)
     chart_electrified = plot_electrified(electrified, electrified_color=electrified_color,
                                          not_electrified_color=not_electrified_color)
-    chart_elevation = plot_elevation(elevation_background, elevation_smoothed, color=elevation_color)
+    chart_elevation = plot_elevation(elevation_background, elevation_smoothed, color=elevation_color,
+                                     elevation_overshoot=elevation_overshoot)
 
     chart_maxspeed = chart_maxspeed \
         .encode(
@@ -117,6 +120,12 @@ def plot_trip_props(maxspeed, electrified, elevation_background, elevation_smoot
 
     chart_elevation = chart_elevation.properties(width=1000, height=elevation_plot_height)
 
+    if interactive:
+        zoom = alt.selection_interval(bind='scales')
+        chart_elevation = chart_elevation.add_selection(zoom)
+        chart_electrified = chart_electrified.add_selection(zoom)
+        chart_maxspeed = chart_maxspeed.add_selection(zoom)
+
     chart = chart_electrified & chart_maxspeed & chart_elevation
     chart = chart.properties(title=trip_title).configure_title(
         align='center',
@@ -126,67 +135,104 @@ def plot_trip_props(maxspeed, electrified, elevation_background, elevation_smoot
     return chart
 
 
-def plot_maxspeeds(maxspeed: DataFrame, color=None) -> alt.Chart:
+def plot_maxspeeds(maxspeed: DataFrame, velocity: Optional[DataFrame] = None, color=None, x_time: bool = False,
+                   dist_time_mapping: Optional[DataFrame] = None) -> alt.Chart:
     """
 
     Parameters
     ----------
     maxspeed : DataFrame
         cols start_dist, maxspeed must be present
+    color
 
     Returns
     -------
 
     """
+
     maxspeeds = []
     start_dists = []
+    cat = []
 
     # plot horizontal lines: duplicate the values and add start and end for the x values
+    c = 0
     for i in range(maxspeed.shape[0] - 1):
         maxspeeds.append(maxspeed.iloc[i]["maxspeed"])
         maxspeeds.append(maxspeed.iloc[i]["maxspeed"])
 
         start_dists.append(maxspeed.iloc[i]["start_dist"])
         start_dists.append(maxspeed.iloc[i + 1]["start_dist"])
+        cat.append(c)
+        cat.append(c)
+        c += 1
 
     # for last value add end_dist as end
     maxspeeds.append(maxspeed.iloc[-1]["maxspeed"])
     start_dists.append(maxspeed.iloc[-1]["start_dist"])
     maxspeeds.append(maxspeed.iloc[-1]["maxspeed"])
     start_dists.append(maxspeed.iloc[-1]["end_dist"])
+    cat.append(c)
+    cat.append(c)
+    maxspeed_chart_data = pd.DataFrame({"maxspeed": maxspeeds, "distance": start_dists, "counter": cat})
 
-    maxspeed_chart_data = pd.DataFrame({"maxspeed": maxspeeds, "distance": start_dists})
+    if x_time:
+        # TODO
+        pass
 
-    # ff7f00
+    # separate the velocity lines from the maxspeed lines
+    if velocity is not None:
+        maxspeed_chart_data["maxspeed"] = maxspeed_chart_data["maxspeed"] + 1
+        velocity['velocity'] = velocity['velocity'] - 1
+
+        # TODO
+        #  make that the x-values in maxspeed and velocity align
+        #  if distance, resample velocity distance so that equidistant
+        #  snap maxspeed x-values to next velocity x-value
+
     if color is None:
-        color = '#377eb8'
-    chart = alt.Chart(maxspeed_chart_data) \
-        .mark_line(color=color) \
-        .encode(x=alt.X('distance:Q',
-                        scale=alt.Scale(
-                            domain=(0, max(maxspeed_chart_data.distance)),
-                            clamp=True,
-                            nice=False),
-                        axis=alt.Axis(format="~s")),
-                y=alt.Y('maxspeed:Q',
-                        scale=alt.Scale(domain=(
-                            0, 150)))
-                )
+        color = '#4c78a8'  # '#377eb8'
+        fill_color = '#9ecae1'
+    else:
+        fill_color = color
 
-    return chart
+    maxspeed_caps_chart = alt.Chart(maxspeed_chart_data).mark_line(opacity=0.5).encode(
+        x='distance',
+        y='maxspeed',
+        color=alt.Color("counter", scale=alt.Scale(domain=[0], range=[color]), legend=None)
+    )
+
+    maxspeed_fill_chart = alt.Chart(maxspeed_chart_data).mark_area(
+        fill=fill_color,  # "#c6dbef", #"lightgray",
+        opacity=0.5,
+        interpolate='step',
+        line=False
+    ).encode(
+        x='distance',
+        y='maxspeed',
+        #  y2='velocity'
+    )
+
+    if velocity is not None:
+        velocity_chart = alt.Chart(velocity).mark_area(line={'color':'#4c78a8'}, color="#4c78a8", opacity=0.2).encode(
+            y=alt.Y('velocity:Q', scale=alt.Scale(domain=(0, max(maxspeed_chart_data.maxspeed)+2), nice=False)),
+            x=alt.X('distance:Q', scale=alt.Scale(nice=False), axis=alt.Axis(format="~s")))
+
+        return maxspeed_fill_chart + maxspeed_caps_chart + velocity_chart
+
+    return maxspeed_fill_chart + maxspeed_caps_chart
 
 
 def plot_elevation(elevation_background: DataFrame, elevation_smoothed: DataFrame,
-                   color: Optional[str] = None) -> alt.Chart:
+                   color: Optional[str] = None, elevation_overshoot: float = 0.15) -> alt.Chart:
     """
 
     Parameters
     ----------
     elevation_background : DataFrame
         columns 'distance', 'elevation'
-
     elevation_smoothed : DataFrame
         columns 'distance', 'elevation'
+    color
 
     Returns
     -------
@@ -195,25 +241,44 @@ def plot_elevation(elevation_background: DataFrame, elevation_smoothed: DataFram
     if color is None:
         color = '#a65628'
 
-    min_ele = max(0, min(elevation_background.elevation) - 50)
-    max_ele = max(elevation_background.elevation)
-    max_ele = max_ele - ((max_ele - min_ele) * 0.2)
+    if elevation_background is not None:
+        min_ele = max(0, min(elevation_background.elevation) - 50)
+        max_ele = max(elevation_background.elevation)
+        max_ele = max_ele - ((max_ele - min_ele) * elevation_overshoot)
+    else:
+        min_ele = max(0, min(elevation_smoothed.elevation) - 50)
+        max_ele = max(elevation_smoothed.elevation)
+        max_ele = max_ele - ((max_ele - min_ele) * elevation_overshoot)
 
-    chart = alt.Chart(elevation_background) \
-                .mark_line(color='#ccc') \
-                .encode(
-        x=alt.X('distance:Q',
-                axis=alt.Axis(format="~s"),
-                scale=alt.Scale(
-                    domain=(0, max(elevation_background.distance)),
-                    clamp=True,
-                    nice=False)),
-        y=alt.Y('elevation:Q',
-                title='elevation',
-                scale=alt.Scale(
-                    domain=(min_ele, max_ele)))) \
-            + alt.Chart(elevation_smoothed).mark_line(color=color).encode(x='distance:Q', y='elevation:Q')
-
+    if elevation_background is not None:
+        chart = alt.Chart(elevation_background) \
+                    .mark_line(color='#ccc') \
+                    .encode(
+            x=alt.X('distance:Q',
+                    axis=alt.Axis(format="~s"),
+                    scale=alt.Scale(
+                        domain=(0, max(elevation_background.distance)),
+                        clamp=True,
+                        nice=False)),
+            y=alt.Y('elevation:Q',
+                    title='elevation',
+                    scale=alt.Scale(
+                        domain=(min_ele, max_ele)))) \
+                + alt.Chart(elevation_smoothed).mark_line(color=color).encode(x='distance:Q', y='elevation:Q')
+    else:
+        chart = alt.Chart(elevation_smoothed) \
+            .mark_line(color=color) \
+            .encode(x=alt.X('distance:Q',
+                            axis=alt.Axis(format="~s"),
+                            scale=alt.Scale(
+                                domain=(0, max(
+                                    elevation_smoothed.distance)),
+                                clamp=True,
+                                nice=False)),
+                    y=alt.Y('elevation:Q',
+                            title='elevation',
+                            scale=alt.Scale(
+                                domain=(min_ele, max_ele))))
     return chart
 
 

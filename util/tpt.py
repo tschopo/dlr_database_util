@@ -1,5 +1,11 @@
+"""
+functions for creating the inputsheets, and functions for calculating "umläufe"
+functions for reading the TPT outputs
+"""
+
 import re
 from typing import Tuple, Dict, Optional
+
 import numpy as np
 import pandas as pd
 from ElevationSampler import ElevationProfile
@@ -7,100 +13,69 @@ from numpy import ndarray
 from openpyxl import load_workbook
 from pandas import DataFrame
 
+from util import get_elevation_at_dist, get_maxspeed_at_dist, get_electrified_at_dist
 
-def process_ele(elevation: ndarray, distances: ndarray, brunnels: DataFrame, first_sample_distance: float = 10.0,
-                end_sample_distance: float = 100., construct_brunnels: bool = True,
-                max_brunnel_length: float = 300., construct_brunnel_thresh: float = 5., diff_kernel_dist: int = 10,
-                adjust_window_size: int = 12, std_thresh: float = 3., sub_factor: float = 2., clip: float = 20,
-                smooth_window_size: int = 501, poly_order: int = 3, degrees: bool = False,
-                smooth_after_resampling: bool = True, window_size_2: int = 21, poly_order_2: int = 1,
-                mode: str = "nearest", adjust_forest_height: bool = True, adjust_method: str = "minimum",
-                minimum_loops: int = 1, double_adjust: bool = True, drop_last_incl_if_high: bool = True,
-                last_incl_thresh: float = 10., last_incl_dist: float = 100., min_ele: float = -3,
-                max_ele: float = 2962.) -> Tuple[DataFrame, DataFrame, DataFrame]:
 
-    distances, elevation = np.array(distances), np.array(elevation)
+def elevation_pipeline(elevation_profile: ElevationProfile, brunnels: DataFrame, first_sample_distance: float = 10.,
+                       end_sample_distance: float = 100., resample: bool = True, resample_distance: float = 300.,
+                       construct_brunnels: bool = True, max_brunnel_length: float = 300.,
+                       construct_brunnel_thresh: float = 5., diff_kernel_dist: int = 10,
+                       smooth_1: bool = True, smooth_window_size_1: int = 31, poly_order_1: int = 3,
+                       smooth_2: bool = True, smooth_window_size_2: int = 15, poly_order_2: int = 1,
+                       mode: str = "nearest", minimum: bool = True,
+                       minimum_loops: int = 1, variance: bool = True, adjust_window_size: int = 12,
+                       std_thresh: float = 2., sub_factor: float = 8., clip: float = 30, min_ele: float = -3,
+                       max_ele: float = 2962.) -> ElevationProfile:
 
     # filter unrealistic values
-    keep = (elevation > min_ele) & (elevation < max_ele)
-    elevation = elevation[keep]
-    distances = distances[keep]
+    keep = (elevation_profile.elevations > min_ele) & (elevation_profile.elevations < max_ele)
+    keep_orig = (elevation_profile.elevations_orig > min_ele) & (elevation_profile.elevations_orig < max_ele)
 
-    elevation_profile = ElevationProfile(distances, elevation)
+    elevation_profile.distances = elevation_profile.distances[keep]
+    elevation_profile.elevations = elevation_profile.elevations[keep]
+
+    elevation_profile.distances_orig = elevation_profile.distances_orig[keep_orig]
+    elevation_profile.elevations_orig = elevation_profile.elevations_orig[keep_orig]
 
     # first_resample so that equidistant sample points at first_sample_distance apart
-    elevation_10 = elevation_profile.resample(first_sample_distance).get_elevations()
-    distances_10 = elevation_profile.get_distances()
+    elevation_profile = elevation_profile.resample(first_sample_distance)
 
     # then interpolate the brunnels
-    ele_brunnel = elevation_profile.interpolate_brunnels(brunnels,
-                                                         distance_delta=first_sample_distance,
-                                                         construct_brunnels=construct_brunnels,
-                                                         max_brunnel_length=max_brunnel_length,
-                                                         construct_brunnel_thresh=construct_brunnel_thresh,
-                                                         diff_kernel_dist=diff_kernel_dist).get_elevations()
+    elevation_profile = elevation_profile.interpolate_brunnels(brunnels,
+                                                               distance_delta=first_sample_distance,
+                                                               construct_brunnels=construct_brunnels,
+                                                               max_brunnel_length=max_brunnel_length,
+                                                               construct_brunnel_thresh=construct_brunnel_thresh,
+                                                               diff_kernel_dist=diff_kernel_dist)
 
     # then adjust the forest height
-    ele_adjusted = ele_brunnel
-    if adjust_forest_height:
-        ele_adjusted = elevation_profile.to_terrain_model(method=adjust_method,
-                                                          window_size=adjust_window_size,
-                                                          std_thresh=std_thresh, sub_factor=sub_factor, clip=clip,
-                                                          minimum_loops=minimum_loops).get_elevations()
+    if minimum:
+        elevation_profile = elevation_profile.to_terrain_model(method="minimum", minimum_loops=minimum_loops)
 
     # then adjust the forest height again with method variance
-    if double_adjust and adjust_forest_height:
-        ele_adjusted = elevation_profile.to_terrain_model(method="variance",
-                                                          window_size=adjust_window_size,
-                                                          std_thresh=std_thresh, sub_factor=sub_factor,
-                                                          clip=clip).get_elevations()
+    if variance:
+        elevation_profile = elevation_profile.to_terrain_model(method="variance",
+                                                               window_size=adjust_window_size,
+                                                               std_thresh=std_thresh, sub_factor=sub_factor,
+                                                               clip=clip)
+    if resample:
+        # then resample the elevation to the end sample distance
+        elevation_profile = elevation_profile.resample(resample_distance)
 
-    # then smooth the elevation profile with high polyorder
-    ele_smoothed = elevation_profile.smooth(window_size=smooth_window_size, poly_order=poly_order,
-                                            mode=mode).get_elevations()
+    if smooth_1:
+        # then smooth the elevation profile with high polyorder
+        elevation_profile = elevation_profile.smooth(window_size=smooth_window_size_1, poly_order=poly_order_1,
+                                                     mode=mode)
 
     # then resample the elevation to the end sample distance
-    elevation_100 = elevation_profile.resample(end_sample_distance).get_elevations()
-    distances_100 = elevation_profile.get_distances()
+    elevation_profile = elevation_profile.resample(end_sample_distance)
 
     # then smooth again with averaging smoothing method
-    if smooth_after_resampling:
-        elevation_100 = elevation_profile.smooth(window_size=window_size_2, poly_order=poly_order_2,
-                                                 mode=mode).get_elevations()
+    if smooth_2:
+        elevation_profile = elevation_profile.smooth(window_size=smooth_window_size_2, poly_order=poly_order_2,
+                                                     mode=mode)
 
-    # then calculate the inclination
-    incl_100 = elevation_profile.inclination(degrees=degrees)
-
-    # set last incl to 0 in some cases
-    if drop_last_incl_if_high \
-            and abs(incl_100[-1]) > last_incl_thresh \
-            and distances_100[-1] - distances_100[-2] < last_incl_dist:
-        incl_100[-1] = 0
-
-    distances_incl = distances_100[:-1]
-
-    data = {
-        "distance": distances_10,
-        "elevation": elevation_10,
-        "ele_brunnel": ele_brunnel,
-        "ele_adjusted": ele_adjusted,
-        "ele_smoothed": ele_smoothed
-    }
-    elevation_pipeline_df: DataFrame = pd.DataFrame.from_dict(data)
-
-    data = {
-        "distance": distances_100,
-        "elevation": elevation_100
-    }
-    elevation_result_df: DataFrame = pd.DataFrame.from_dict(data)
-
-    data = {
-        "start_dist": distances_incl,
-        "incl": incl_100
-    }
-    inclination_df: DataFrame = pd.DataFrame.from_dict(data)
-
-    return elevation_pipeline_df, elevation_result_df, inclination_df
+    return elevation_profile
 
 
 def flip_trip(start_dists: ndarray, end_dists: ndarray, parameter: ndarray, invert_para: bool = False) \
@@ -573,3 +548,53 @@ def _get_table_row_boundaries(ws, begin_token: str, end_token: str = "]end"):
             break
 
     return start_row, end_row
+
+
+def read_tpt_output_sheet(file):
+    tpt_df = pd.read_csv(file, header=None,
+                         names=['time', 'acceleration', 'velocity', 'distance', 'force', 'power'])
+    tpt_df = tpt_df[['time', 'distance', 'acceleration', 'velocity', 'force', 'power']]
+
+    # convert to km/h
+    tpt_df['velocity'] = tpt_df['velocity'] * 3.6
+
+    # add time data
+
+    # convert index to timedelta64
+    # add time from timetable, possibly add second datetime64 index / or as column?
+
+    tpt_df["time_delta"] = pd.to_timedelta(tpt_df["time"], unit='S')
+
+    tpt_df.set_index("time_delta", inplace=True, drop=False)
+
+    return tpt_df
+
+
+def add_inputs_to_simulation_results(tpt_df, elevation, maxspeed, electrified):
+    # resample the inputs so the distances match the simulation distances
+    tpt_df[['elevation', 'maxspeed', 'electrified']] = tpt_df.apply(
+        lambda r: pd.Series([get_elevation_at_dist(elevation, r["distance"]),
+                             get_maxspeed_at_dist(maxspeed, r["distance"]),
+                             get_electrified_at_dist(electrified, r["distance"])],
+                            index=['elevation', 'maxspeed', 'electrified']), axis=1)
+    return tpt_df
+
+
+def resample_simulation_results(tpt_df, s: int = 10):
+    # mean: distance, acceleration, velocity, elevation
+    # median: maxspeed, electrified
+    # sum: force, power
+    # min: time
+
+    interval = str(s) + "S"
+
+    resample = tpt_df.resample(interval)
+    resampled = tpt_df[["time", "time_delta"]].min()
+    resampled[["distance", "acceleration", "velocity"]] = resample[["distance", "acceleration", "velocity"]].mean()
+    resampled[["force", "power"]] = resample[["force", "power"]].sum()
+
+    if "elevation" in tpt_df.columns and "maxspeed" in tpt_df.columns and "electrified" in tpt_df.columns:
+        resampled[["elevation"]] = resample[["elevation"]].mean()
+        resampled[["maxspeed", "electrified"]] = resample[["maxspeed", "electrified"]].median()
+
+    return resampled
