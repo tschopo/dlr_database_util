@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from geopandas import GeoDataFrame
 from pandas import DataFrame
-from sqlalchemy import text, create_engine
+from sqlalchemy import text
 
 from .osm import sql_get_osm_from_line
 
@@ -18,8 +18,8 @@ from .osm import sql_get_osm_from_line
 class RailwayDatabase:
     # TODO add caching by saving already fetched data for each trip id
 
-    def __init__(self, engine_string):
-        self.engine = create_engine(engine_string)
+    def __init__(self, engine):
+        self.engine = engine
 
     def get_trip_shape(self, trip_id: int, crs: Optional[Any] = None) -> GeoDataFrame:
         """

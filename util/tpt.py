@@ -20,8 +20,8 @@ def elevation_pipeline(elevation_profile: ElevationProfile, brunnels: DataFrame,
                        end_sample_distance: float = 100., resample: bool = True, resample_distance: float = 300.,
                        construct_brunnels: bool = True, max_brunnel_length: float = 300.,
                        construct_brunnel_thresh: float = 5., diff_kernel_dist: int = 10,
-                       smooth_1: bool = True, smooth_window_size_1: int = 31, poly_order_1: int = 3,
-                       smooth_2: bool = True, smooth_window_size_2: int = 15, poly_order_2: int = 1,
+                       smooth_1: bool = True, smooth_window_size_1: int = 25, poly_order_1: int = 3,
+                       smooth_2: bool = True, smooth_window_size_2: int = 7, poly_order_2: int = 1,
                        mode: str = "nearest", minimum: bool = True,
                        minimum_loops: int = 1, variance: bool = True, adjust_window_size: int = 12,
                        std_thresh: float = 2., sub_factor: float = 8., clip: float = 30, min_ele: float = -3,
@@ -580,21 +580,46 @@ def add_inputs_to_simulation_results(tpt_df, elevation, maxspeed, electrified):
     return tpt_df
 
 
-def resample_simulation_results(tpt_df, s: int = 10):
+def resample_simulation_results(tpt_df, t: Optional[int] = 10):
     # mean: distance, acceleration, velocity, elevation
     # median: maxspeed, electrified
     # sum: force, power
     # min: time
 
-    interval = str(s) + "S"
+    # skip if already resampled to given interval
+    if tpt_df.iloc[1]["time_delta"] == pd.Timedelta(t, unit="S"):
+        return tpt_df
+
+    interval = str(t) + "S"
 
     resample = tpt_df.resample(interval)
-    resampled = tpt_df[["time", "time_delta"]].min()
-    resampled[["distance", "acceleration", "velocity"]] = resample[["distance", "acceleration", "velocity"]].mean()
-    resampled[["force", "power"]] = resample[["force", "power"]].sum()
+    resampled = resample[["time_delta"]].min()
 
-    if "elevation" in tpt_df.columns and "maxspeed" in tpt_df.columns and "electrified" in tpt_df.columns:
+    if "time" in tpt_df.columns:
+        resampled[["time"]] = resample[["time"]].min()
+
+    if "distance" in tpt_df.columns:
+        resampled[["distance"]] = resample[["distance"]].mean()
+
+    if "acceleration" in tpt_df.columns:
+        resampled[["acceleration"]] = resample[["acceleration"]].mean()
+
+    if "velocity" in tpt_df.columns:
+        resampled[["velocity"]] = resample[["velocity"]].mean()
+
+    if "power" in tpt_df.columns:
+        resampled[["power"]] = resample[["power"]].sum()
+
+    if "force" in tpt_df.columns:
+        resampled[["force"]] = resample[["force"]].sum()
+
+    if "elevation" in tpt_df.columns:
         resampled[["elevation"]] = resample[["elevation"]].mean()
-        resampled[["maxspeed", "electrified"]] = resample[["maxspeed", "electrified"]].median()
+
+    if "maxspeed" in tpt_df.columns:
+        resampled[["maxspeed"]] = resample[["maxspeed"]].median()
+
+    if "electrified" in tpt_df.columns:
+        resampled[["electrified"]] = resample[["electrified"]].median()
 
     return resampled

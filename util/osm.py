@@ -389,10 +389,10 @@ def finalize_osm(osm_data: GeoDataFrame, trip_geom, filter_inactive: bool = True
 
 
 def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float = 10., round_int: bool = True,
-                 maxspeed_spikes_min_length: Optional[float] = 250., maxspeed_if_all_null: float = 120.,
+                 train_length: Optional[float] = 150., maxspeed_if_all_null: float = 120.,
                  maxspeed_null_segment_length=1000., maxspeed_min_if_null: float = 60.,
                  trip_length: Optional[float] = None, harmonize_end_dists: bool = True,
-                 set_unknown_electrified_to_no: bool = True):
+                 set_unknown_electrified_to_no: bool = True, tpt: bool = True):
     """
     Get dataframe of start_dist, end_dists, property value, for a given osm property. Merges adjacent sections with same
     value.
@@ -430,6 +430,8 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
         set_unknown_electrified_to_no : bool
             if false, then unknown electrified are ignored, meaning that always the previous known value is used until
             next known value. if true then unknown segments are set to "no"
+        tpt : bool
+            set true if using the outputs for tpt simulator. fixes tpt bugs
 
     Returns
     -------
@@ -596,7 +598,16 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
 
     elif prop == "maxspeed":
 
-        if maxspeed_spikes_min_length is not None:
+        # TPT bug: If maxspeed reduction after short distance from start, it crashes. --> Remove the short segment
+        while tpt and \
+           props.iloc[1]["start_dist"] <= train_length and \
+           props.iloc[1]["maxspeed"] <= props.iloc[0]["maxspeed"]:
+
+            props.iloc[1, props.columns.get_loc("start_dist")] = 0
+            props.drop([0], inplace=True)
+            props.reset_index(drop=True, inplace=True)
+
+        if train_length is not None:
 
             # filter maxspeed segments that are small and are "spikes" e.g. that are higher than their neighbours.
 
@@ -611,7 +622,7 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
                     # segment length is calculated only from the start dists
                     segment_length = props.iloc[i + 1]["start_dist"] - props.iloc[i]["start_dist"]
 
-                    if segment_length < maxspeed_spikes_min_length \
+                    if segment_length <= train_length \
                             and props.iloc[i - 1][prop] < props.iloc[i][prop] > props.iloc[i + 1][prop]:
                         # remove the row and extend the previous segment
                         drop_idx.append(i)
