@@ -86,14 +86,16 @@ class Trip:
 
     def get_velocity(self, delta_t=10):
         if self.simulated:
-            velocity = resample_simulation_results(self.simulation_results[["distance", "time", "velocity"]], t=delta_t)
+            velocity = resample_simulation_results(self.simulation_results[["time_delta", "distance", "time", "velocity"]], t=delta_t)
+            velocity = velocity[["distance", "time", "velocity"]]
         else:
             velocity = None
         return velocity
 
     def get_power(self, delta_t=10):
         if self.simulated:
-            power = resample_simulation_results(self.simulation_results[["distance", "time", "power"]], t=delta_t)
+            power = resample_simulation_results(self.simulation_results[["time_delta", "distance", "time", "power"]], t=delta_t)
+            power = power[["distance", "time", "power"]]
         else:
             power = None
         return power
