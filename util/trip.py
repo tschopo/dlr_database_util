@@ -162,7 +162,7 @@ class Trip:
         m = plot_osm(self.osm_data, prop=prop)
         return m
 
-    def summary_chart(self, save=False, filename: Optional[str] = None):
+    def summary_chart(self, save=False, filename: Optional[str] = None, **kwargs):
         """
 
         Parameters
@@ -177,11 +177,13 @@ class Trip:
         """
 
         chart = plot_trip_props(self.maxspeed, self.electrified, self.get_elevation(smoothed=False),
-                                self.get_elevation(smoothed=True), self.title, velocity=self.get_velocity(),
-                                power=self.get_power())
+                                self.get_elevation(smoothed=True), self.title, self.length, velocity=self.get_velocity(),
+                                power=self.get_power(), timetable=self.timetable, **kwargs)
         return chart
 
     # def summary
+    # summary stats about the trip
+    # e_rad, e_break, n_stops, total_travel_time, trip_length
 
 
 def clean_name(name: str) -> str:
