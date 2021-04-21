@@ -138,12 +138,11 @@ class Trip:
     def add_simulation_results(self, output_sheet, t=10):
         tpt_df = read_tpt_output_sheet(output_sheet)
 
-        # TODO first resample not after
-        tpt_df = add_inputs_to_simulation_results(tpt_df, self.get_elevation(smoothed=True), self.maxspeed,
-                                                  self.electrified)
-
         if t is not None:
             tpt_df = resample_simulation_results(tpt_df, t=t)
+
+        tpt_df = add_inputs_to_simulation_results(tpt_df, self.get_elevation(smoothed=True), self.maxspeed,
+                                                  self.electrified)
 
         # add time column
         tpt_df['time'] = tpt_df.time_delta + self.start_time

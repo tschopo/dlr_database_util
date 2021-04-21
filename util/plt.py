@@ -361,7 +361,7 @@ def plot_electrified(electrified: DataFrame, trip_length, electrified_color: Opt
                         scale=alt.Scale(
                             domain=['yes', 'no'],
                             range=[electrified_color, not_electrified_color]),
-                        legend=alt.Legend(orient="top-right")
+                        legend=alt.Legend(orient="bottom-right", direction ='horizontal', offset=80)
                         ),
         order=alt.Order(
             # Sort the segments of the bars by this field
@@ -371,7 +371,26 @@ def plot_electrified(electrified: DataFrame, trip_length, electrified_color: Opt
     ).properties(height=4)
 
     if timetable is not None:
-        timetable_chart_data = timetable.copy()[['dist', 'stop_name', 'arrival_time']]
+        delay = False
+        if 'delay' in timetable.columns:
+            cols = ['dist', 'stop_name', 'arrival_time', 'delay']
+            delay = True
+        else:
+            cols = ['dist', 'stop_name', 'arrival_time']
+
+        timetable_chart_data = timetable.copy()[cols]
+
+        if delay:
+            timetable_chart_data['delay'] = timetable.delay.dt.total_seconds()
+            labels = []
+            for delay in timetable_chart_data['delay'].values:
+                if delay > 0:
+                    labels.append('+' + str(int(delay)) + 's')
+                else:
+                    labels.append(' ')
+            labels = np.array(labels)
+            timetable_chart_data['delay_labels'] = labels
+
         # get dist to last station
         timetable_chart_data["time_label_pos"] = [1 if x % 2 == 1 else 2 for x in timetable.index]
         timetable_chart_data["station_point_pos"] = [0 for x in timetable.index]
@@ -397,6 +416,19 @@ def plot_electrified(electrified: DataFrame, trip_length, electrified_color: Opt
             y=alt.Y('time_label_pos', axis=None, scale=alt.Scale(nice=False)),
             text=alt.Text('arrival_time:T', timeUnit='hoursminutes')).properties(width=1000, height=20)
 
+        if delay:
+            station_delays = alt.Chart(timetable_chart_data).mark_text(color='#d62728', align='center', angle=0,
+                                                                       dy=25).encode(
+                x=alt.X('dist:Q', scale=alt.Scale(nice=False), axis=alt.Axis(format="~s")),
+                y=alt.Y('time_label_pos', axis=None, scale=alt.Scale(nice=False)),
+                text=alt.Text('delay_labels:N')).properties(width=1000, height=20)
+
+            electrified_chart = electrified_chart + station_points + station_names + station_times + station_delays
+        else:
+            electrified_chart = electrified_chart + station_points + station_names + station_times
+
+
+
         electrified_chart = electrified_chart + station_points + station_names + station_times
 
     return electrified_chart
@@ -416,7 +448,7 @@ def plot_power(power: DataFrame, pos_color='#9ecae1', neg_color='#d62728', hide_
     ).mark_area(opacity=0.75).encode(
         x=x,
         y=alt.Y('power:Q', impute={'value': 0},
-                scale=alt.Scale(nice=False, domain=[-15000000, 10000000], clamp=False),
+                scale=alt.Scale(nice=False, domain=[power.power.min()*0.75, power.power.max()], clamp=False),
                 axis=alt.Axis(format="~s", title='power (W)')),
         color=alt.Color('negative:N', legend=None, scale=alt.Scale(domain=[False, True], range=[neg_color, pos_color]))
     )
