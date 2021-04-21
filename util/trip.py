@@ -60,6 +60,12 @@ class Trip:
 
         self.electrified = get_osm_prop(self.osm_data, "electrified")
         self.maxspeed = get_osm_prop(self.osm_data, "maxspeed")
+
+        # TODO set maxspeed endist correctly by get_osm
+        self.length = self.trip_geom.length.iloc[0]
+        self.maxspeed.at[self.maxspeed.shape[0]-1, 'end_dist'] = self.length + 1
+        self.electrified.at[self.electrified.shape[0] - 1, 'end_dist'] = self.length + 1
+
         self.brunnels = get_osm_prop(self.osm_data, "brunnel", brunnel_filter_length=brunnel_filter_length)
 
         elevation_profile = dem.elevation_profile(self.trip_geom, distance=first_sample_distance,
@@ -69,7 +75,6 @@ class Trip:
 
         self.simulation_results = None
 
-        self.length = self.trip_geom.length.iloc[0]
 
     def get_elevation(self, smoothed=True):
         """ if simulated also returns time column. """
@@ -130,12 +135,15 @@ class Trip:
             return write_sensor_input_sheet(self.title, self.timetable, self.electrified, self.maxspeed, inclination,
                                             folder=folder)
 
-    def add_simulation_results(self, output_sheet):
+    def add_simulation_results(self, output_sheet, t=10):
         tpt_df = read_tpt_output_sheet(output_sheet)
+
+        # TODO first resample not after
         tpt_df = add_inputs_to_simulation_results(tpt_df, self.get_elevation(smoothed=True), self.maxspeed,
                                                   self.electrified)
 
-        tpt_df = resample_simulation_results(tpt_df, t=10)
+        if t is not None:
+            tpt_df = resample_simulation_results(tpt_df, t=t)
 
         # add time column
         tpt_df['time'] = tpt_df.time_delta + self.start_time
@@ -162,14 +170,14 @@ class Trip:
         m = plot_osm(self.osm_data, prop=prop)
         return m
 
-    def summary_chart(self, save=False, filename: Optional[str] = None, **kwargs):
+    def summary_chart(self, save=False, filename: Optional[str] = None, folder=None, **kwargs):
         """
 
         Parameters
         ----------
         save
         filename
-            If none uses trip title as filename.
+            If none uses trip title as filename. must end with '.png'.
 
         Returns
         -------
@@ -179,6 +187,12 @@ class Trip:
         chart = plot_trip_props(self.maxspeed, self.electrified, self.get_elevation(smoothed=False),
                                 self.get_elevation(smoothed=True), self.title, self.length, velocity=self.get_velocity(),
                                 power=self.get_power(), timetable=self.timetable, **kwargs)
+
+        if save:
+            folder = '' if folder is None else folder + '/'
+            filename = self.title + '.png' if filename is None else filename
+            chart.save(folder + filename)
+
         return chart
 
     # def summary

@@ -91,7 +91,7 @@ def plot_osm(osm_data: GeoDataFrame, prop: Optional[str] = None) -> Map:
 def plot_trip_props(maxspeed, electrified, elevation_background, elevation_smoothed, trip_title, trip_length,
                     velocity: Optional[DataFrame] = None, power: Optional[DataFrame] = None,
                     timetable: Optional[DataFrame] = None, x_time: bool = False, color_monotone=None,
-                    elevation_plot_height=100, elevation_overshoot=0.15, interactive: bool = True):
+                    elevation_plot_height=100, elevation_overshoot=0.15, interactive: bool = False):
 
     # ideas: add stations to elevation and maxspeed (points on the line)
     # add timetable plot (like electrified, with station names and color is the duration between the stations?)
@@ -111,7 +111,7 @@ def plot_trip_props(maxspeed, electrified, elevation_background, elevation_smoot
     if interactive:
         elevation_overshoot = 0
 
-    chart_maxspeed = plot_maxspeeds(maxspeed, velocity=velocity, x_time=x_time, color=maxspeed_color, hide_x=True)
+    chart_maxspeed = plot_maxspeeds(maxspeed, velocity=velocity, x_time=x_time, color=maxspeed_color, hide_x=True, x_top=True)
     chart_electrified = plot_electrified(electrified, trip_length=trip_length, electrified_color=electrified_color,
                                          not_electrified_color=not_electrified_color, timetable=timetable)
 
@@ -159,7 +159,7 @@ def plot_trip_props(maxspeed, electrified, elevation_background, elevation_smoot
 
 
 def plot_maxspeeds(maxspeed: DataFrame, velocity: Optional[DataFrame] = None, color=None, x_time: bool = False,
-                   dist_time_mapping: Optional[DataFrame] = None, hide_x =False) -> alt.Chart:
+                   dist_time_mapping: Optional[DataFrame] = None, hide_x =False, x_top=False) -> alt.Chart:
     """
 
     Parameters
@@ -224,12 +224,17 @@ def plot_maxspeeds(maxspeed: DataFrame, velocity: Optional[DataFrame] = None, co
         color=alt.Color("counter", scale=alt.Scale(domain=[0], range=[color]), legend=None)
     )
 
+    if x_top:
+        x_pos = 'top'
+    else:
+        x_pos = 'bottom'
+
     if hide_x:
         x = alt.X('distance:Q', axis=alt.Axis(labels=False, ticks=False, tickRound=True),
                   title='',
                   scale=alt.Scale(domain=(0, max(maxspeed.end_dist)), clamp=True, nice=False))
     else:
-        x = alt.X('distance:Q', scale=alt.Scale(nice=False), axis=alt.Axis(format="~s"))
+        x = alt.X('distance:Q', scale=alt.Scale(nice=False), axis=alt.Axis(format="~s", orient=x_pos), title='distance (m)')
 
     maxspeed_fill_chart = alt.Chart(maxspeed_chart_data).mark_area(
         fill=color,  # "#c6dbef", #"lightgray",
@@ -244,7 +249,7 @@ def plot_maxspeeds(maxspeed: DataFrame, velocity: Optional[DataFrame] = None, co
 
     if velocity is not None:
         velocity_chart = alt.Chart(velocity).mark_area(line={'color': color, 'opacity': 0.75, 'strokeWidth': 2}, color=fill_color, opacity=0.5).encode(
-            y=alt.Y('velocity:Q', scale=alt.Scale(domain=(0, max(maxspeed_chart_data.maxspeed) + 2), nice=False)),
+            y=alt.Y('velocity:Q', scale=alt.Scale(domain=(0, max(maxspeed_chart_data.maxspeed) + 2), nice=False), axis=alt.Axis(title='v_max, velocity (km/h)')),
             x=x)
 
         return maxspeed_fill_chart + maxspeed_caps_chart + velocity_chart
@@ -281,15 +286,15 @@ def plot_elevation(elevation_background: DataFrame, elevation_smoothed: DataFram
         max_ele = max_ele - ((max_ele - min_ele) * elevation_overshoot)
 
     if hide_x:
-        x = alt.X('distance:Q',
-                  axis=None,
+        x = alt.X('distance:Q', axis=alt.Axis(labels=False, ticks=False, tickRound=True),
+                  title='',
                   scale=alt.Scale(
                       domain=(0, max(elevation_background.distance)),
                       clamp=True,
                       nice=False))
     else:
         x = alt.X('distance:Q',
-                  axis=alt.Axis(format="~s"),
+                  axis=alt.Axis(format="~s", title='distance (m)'),
                   scale=alt.Scale(
                       domain=(0, max(elevation_background.distance)),
                       nice=False))
@@ -303,14 +308,16 @@ def plot_elevation(elevation_background: DataFrame, elevation_smoothed: DataFram
             y=alt.Y('elevation:Q',
                     title='elevation',
                     scale=alt.Scale(
-                        domain=(min_ele, max_ele)))) \
+                        domain=(min_ele, max_ele)),
+                    axis=alt.Axis(title='elevation (m)')
+                    )) \
                 + alt.Chart(elevation_smoothed).mark_line(color=color, strokeWidth=2).encode(x='distance:Q', y='elevation:Q')
     else:
         chart = alt.Chart(elevation_smoothed) \
             .mark_line(color=color) \
             .encode(x=x,
                     y=alt.Y('elevation:Q',
-                            title='elevation',
+                            title='elevation (m)',
                             scale=alt.Scale(
                                 domain=(min_ele, max_ele))))
     return chart
@@ -353,7 +360,9 @@ def plot_electrified(electrified: DataFrame, trip_length, electrified_color: Opt
         color=alt.Color('electrified:N',
                         scale=alt.Scale(
                             domain=['yes', 'no'],
-                            range=[electrified_color, not_electrified_color])),
+                            range=[electrified_color, not_electrified_color]),
+                        legend=alt.Legend(orient="top-right")
+                        ),
         order=alt.Order(
             # Sort the segments of the bars by this field
             'start_dist',
@@ -400,15 +409,15 @@ def plot_power(power: DataFrame, pos_color='#9ecae1', neg_color='#d62728', hide_
                   title='',
                   scale=alt.Scale(domain=(0, max(power.distance)), clamp=True, nice=False))
     else:
-        x = alt.X('distance:Q', scale=alt.Scale(nice=False), axis=alt.Axis(format="~s"))
+        x = alt.X('distance:Q', scale=alt.Scale(nice=False), axis=alt.Axis(format="~s", title='distance (m)'))
 
     chart_power = alt.Chart(power).transform_calculate(
         negative='datum.power > 0'
-    ).mark_area(opacity=0.6).encode(
+    ).mark_area(opacity=0.75).encode(
         x=x,
         y=alt.Y('power:Q', impute={'value': 0},
                 scale=alt.Scale(nice=False, domain=[-15000000, 10000000], clamp=False),
-                axis=alt.Axis(format="~s")),
+                axis=alt.Axis(format="~s", title='power (W)')),
         color=alt.Color('negative:N', legend=None, scale=alt.Scale(domain=[False, True], range=[neg_color, pos_color]))
     )
     return chart_power

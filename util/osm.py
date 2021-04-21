@@ -274,7 +274,7 @@ def calc_distances(osm_data: GeoDataFrame, trip_geom: GeoSeries, geom_col: str =
     return osm_data
 
 
-def finalize_osm(osm_data: GeoDataFrame, trip_geom, filter_inactive: bool = True):
+def finalize_osm(osm_data: GeoDataFrame, trip_geom, filter_inactive: bool = False):
     """
     Calculates overlapping segments along the trip geometry. Removes overlapping if they dont have status=active,
     or they are a service track.
@@ -289,7 +289,7 @@ def finalize_osm(osm_data: GeoDataFrame, trip_geom, filter_inactive: bool = True
     trip_geom
     filter_inactive
         if True filters overlapping segments with status != active and service tracks
-        if False then all overlapping segments are discarded. This leads to gaps in the data.
+        if False then no overlapping segments are discarded.
 
     """
 
@@ -348,42 +348,75 @@ def finalize_osm(osm_data: GeoDataFrame, trip_geom, filter_inactive: bool = True
         # add to osm with flipped geometries
         osm_data.append(row)
 
+    # make sure shorter segments come before longer segments if same start point
     osm_data.sort_values(['start_point_distance', 'end_point_distance'], inplace=True)
     osm_data.reset_index(drop=True, inplace=True)
 
     # get overlapping segments
     # important: data must be sorted after start_distance
+    # step 1: assign plausible values to maxspeed, electrified, brunnels for all overlapping segments
     overlapping = []
     for i, row in osm_data.iterrows():
+
+        # find all overlapping segments for this segment
         overlapping_idx = osm_data[i + 1:].index[
             row["end_point_distance"] > osm_data[i + 1:]["start_point_distance"]].tolist()
-        overlapping += overlapping_idx
 
+        # add this segment to overlapping
         if len(overlapping_idx) > 0:
-            overlapping += [i]
-    overlapping = list(set(overlapping))
+            overlapping_idx += [i]
 
-    if not filter_inactive:
-        return osm_data[~osm_data.index.isin(overlapping)]
+            overlapping += overlapping_idx
+
+            # set maxspeed to highest value
+            maxspeeds = osm_data.iloc[overlapping_idx]["maxspeed"].values
+            if not np.isnan(maxspeeds).all():
+                osm_data.iloc[i, osm_data.columns.get_loc("maxspeed")] = np.nanmax(maxspeeds)
+
+            # set electrified to yes if there is a yes
+            electrified = osm_data.iloc[overlapping_idx]["electrified"].values
+            if "yes" in electrified:
+                osm_data.iloc[i, osm_data.columns.get_loc("electrified")] = "yes"
+
+            # set tunnel to yes if there is a yes
+            tunnels = osm_data.iloc[overlapping_idx]["tunnel"].values
+            if "yes" in tunnels:
+                osm_data.iloc[i, osm_data.columns.get_loc("tunnel")] = "yes"
+
+            # set bridge to yes if there is a yes
+            bridges = osm_data.iloc[overlapping_idx]["bridge"].values
+            if "yes" in bridges:
+                osm_data.iloc[i, osm_data.columns.get_loc("bridge")] = "yes"
+
+    # step 2:
+    # set the endpoint to the next startpoint for overlapping segments
+    drop_idx = []
+    for i in range(osm_data.shape[0]-1):
+        # if overlaps
+        if osm_data.at[i, "end_point_distance"] > osm_data.at[i+1, "start_point_distance"]:
+
+            # adjust endpoint
+            osm_data.at[i, "end_point_distance"] = osm_data.at[i + 1, "start_point_distance"]
+
+            # it can happen that the segment has 0 length --> drop
+            if osm_data.at[i, "start_point_distance"] >= osm_data.at[i, "end_point_distance"]:
+                drop_idx.append(i)
+
+    osm_data.drop(drop_idx, inplace=True)
 
     # from overlapping filter sections that are not active or are service tracks
     # remove isin(overlapping) and ((status != active) or (service != 'None))
+    if filter_inactive:
+        keep = (~osm_data.index.isin(overlapping)) | ((osm_data.status == "active") & (osm_data.service == "None"))
 
-    keep = (~osm_data.index.isin(overlapping)) | ((osm_data.status == "active") & (osm_data.service == "None"))
-    discard = (osm_data.index.isin(overlapping)) & ((osm_data.status != "active") | (osm_data.service != "None"))
+        osm_data = osm_data[keep]
 
-    assert np.all(keep == ~discard)
+    osm_data.reset_index(drop=True, inplace=True)
 
-    osm_data = osm_data[keep]
-
-    # TODO this way there are tracks lost. add final step: compute missing segments
-    # get all osm in missing segment
-    # create new osm row where geom is missing segment, and values are computed from the osm segments
-    # e.g. max(maxspeeds), tunnel = yes if any yes, bridge = yes if any yes, electrified = yes if any yes ...
-
-    # TODO add step harmomnize because there can still be overlapping segments: make that end_point is always
-    #  next.start_point. if overlapping then make both segments shorter, if missing segment, then make both segments
-    #  longer
+    # this way there are tracks lost. add final step: compute missing segments
+    #  get all osm in missing segment
+    #  create new osm row where geom is missing segment, and values are computed from the osm segments
+    #  e.g. max(maxspeeds), tunnel = yes if any yes, bridge = yes if any yes, electrified = yes if any yes ...
 
     return osm_data
 
@@ -414,7 +447,7 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
             ignores brunnels that are smaller than this length
         round_int : bool
             return ints not floats for start_dist, end_dist, maxspeed
-        maxspeed_spikes_min_length : float or None
+        train_length : float or None
             The minimum length of maxspeed spikes. Should be larger than train length.
         maxspeed_if_all_null : float
             The maxspead that is set if there are 0 maxspeeds present
@@ -581,6 +614,7 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
         if trip_length is not None:
             props.iloc[-1, props.columns.get_loc('end_dist')] = trip_length
         if harmonize_end_dists:
+            props.iloc[0, props.columns.get_loc('start_dist')] = 0
             props.iloc[0:-1, props.columns.get_loc('end_dist')] = props.iloc[1:,
                                                                              props.columns.get_loc('start_dist')].values
 
@@ -600,6 +634,7 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
 
         # TPT bug: If maxspeed reduction after short distance from start, it crashes. --> Remove the short segment
         while tpt and \
+           props.shape[0] > 1 and \
            props.iloc[1]["start_dist"] <= train_length and \
            props.iloc[1]["maxspeed"] <= props.iloc[0]["maxspeed"]:
 

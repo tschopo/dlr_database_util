@@ -550,13 +550,24 @@ def _get_table_row_boundaries(ws, begin_token: str, end_token: str = "]end"):
     return start_row, end_row
 
 
-def read_tpt_output_sheet(file):
-    tpt_df = pd.read_csv(file, header=None,
+def read_tpt_output_sheet(file, version=2):
+
+    if version == 1:
+        tpt_df = pd.read_csv(file, header=None,
                          names=['time', 'acceleration', 'velocity', 'distance', 'force', 'power'])
-    tpt_df = tpt_df[['time', 'distance', 'acceleration', 'velocity', 'force', 'power']]
+        tpt_df = tpt_df[['time', 'distance', 'acceleration', 'velocity', 'force', 'power']]
+    else:
+        tpt_df = pd.read_csv(file, header=0,
+                    names=['time', 'acceleration', 'velocity', 'distance', 'force', 'power', 'maxspeed_sim', 'gradient',
+                           'electrification'])
+        tpt_df = tpt_df[['time', 'distance', 'acceleration', 'velocity', 'force', 'power', 'maxspeed_sim', 'gradient',
+                         'electrification']]
 
     # convert to km/h
     tpt_df['velocity'] = tpt_df['velocity'] * 3.6
+
+    if 'maxspeed_sim' in tpt_df.columns:
+        tpt_df['maxspeed_sim'] = tpt_df['maxspeed_sim'] * 3.6
 
     # add time data
 
@@ -608,18 +619,27 @@ def resample_simulation_results(tpt_df, t: Optional[int] = 10):
         resampled[["velocity"]] = resample[["velocity"]].mean()
 
     if "power" in tpt_df.columns:
-        resampled[["power"]] = resample[["power"]].sum()
+        resampled[["power"]] = resample[["power"]].mean()
 
     if "force" in tpt_df.columns:
-        resampled[["force"]] = resample[["force"]].sum()
+        resampled[["force"]] = resample[["force"]].mean()
 
     if "elevation" in tpt_df.columns:
         resampled[["elevation"]] = resample[["elevation"]].mean()
 
+    if "gradient" in tpt_df.columns:
+        resampled[["gradient"]] = resample[["gradient"]].mean()
+
     if "maxspeed" in tpt_df.columns:
         resampled[["maxspeed"]] = resample[["maxspeed"]].median()
 
+    if "maxspeed_sim" in tpt_df.columns:
+        resampled[["maxspeed_sim"]] = resample[["maxspeed_sim"]].median()
+
     if "electrified" in tpt_df.columns:
         resampled[["electrified"]] = resample[["electrified"]].median()
+
+    if "electrification" in tpt_df.columns:
+        resampled[["electrification"]] = resample[["electrification"]].median()
 
     return resampled
