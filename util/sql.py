@@ -61,12 +61,15 @@ class RailwayDatabase:
         # sqlalchemy cant handle numpy datatypes
         trip_id = int(trip_id)
 
+        # old dist calculation fails because of kopfbahnhöfe and inaccurate stop lat lon
+        # ST_LineLocatePoint(ST_Transform(geo_shape_geoms.geom, 25832), \
+        #                   ST_Transform(ST_SetSRID(ST_MakePoint(stop_lon, stop_lat), 4326), 25832)) \
+        # * ST_length(ST_Transform(geo_shape_geoms.geom, 25832))
+
         sql = """\
         select geo_trips.trip_headsign, geo_stop_times.stop_sequence,\
         geo_stop_times.arrival_time, geo_stop_times.departure_time,\
-        geo_stops.stop_name, ST_LineLocatePoint(ST_Transform(geo_shape_geoms.geom,25832),\
-        ST_Transform(ST_SetSRID(ST_MakePoint(stop_lon,stop_lat),4326),25832))\
-         * ST_length(ST_Transform(geo_shape_geoms.geom,25832)) as dist
+        geo_stops.stop_name, shape_dist_traveled as dist
         from geo_stop_times, geo_stops, geo_trips, geo_shape_geoms
         where 
         geo_stops.stop_id = geo_stop_times.stop_id

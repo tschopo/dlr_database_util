@@ -632,16 +632,6 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
 
     elif prop == "maxspeed":
 
-        # TPT bug: If maxspeed reduction after short distance from start, it crashes. --> Remove the short segment
-        while tpt and \
-           props.shape[0] > 1 and \
-           props.iloc[1]["start_dist"] <= train_length and \
-           props.iloc[1]["maxspeed"] <= props.iloc[0]["maxspeed"]:
-
-            props.iloc[1, props.columns.get_loc("start_dist")] = 0
-            props.drop([0], inplace=True)
-            props.reset_index(drop=True, inplace=True)
-
         if train_length is not None:
 
             # filter maxspeed segments that are small and are "spikes" e.g. that are higher than their neighbours.
@@ -665,6 +655,26 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
                         changed = True
 
                 props.drop(drop_idx, inplace=True)
+                props.reset_index(drop=True, inplace=True)
+
+            # TPT bug: If maxspeed reduction after short distance from start, it crashes. --> Remove the short segment
+            while tpt and \
+                    props.shape[0] > 1 and \
+                    props.iloc[1]["start_dist"] <= train_length and \
+                    props.iloc[1]["maxspeed"] <= props.iloc[0]["maxspeed"]:
+
+                props.iloc[1, props.columns.get_loc("start_dist")] = 0
+                props.drop([0], inplace=True)
+                props.reset_index(drop=True, inplace=True)
+
+            # TPT bug: If maxspeed raise in short distance from end, it crashes. --> Remove the short segment
+            # use larger buffer since distances are not exact
+            while tpt and \
+                    props.shape[0] > 1 and \
+                    props.iloc[-1]["end_dist"] - props.iloc[-1]["start_dist"] <= 500 and \
+                    props.iloc[-1]["maxspeed"] >= props.iloc[-2]["maxspeed"]:
+                props.iloc[-2, props.columns.get_loc("end_dist")] = props.iloc[-1]["end_dist"]
+                props.drop([props.shape[0] - 1], inplace=True)
                 props.reset_index(drop=True, inplace=True)
 
     if round_int:
