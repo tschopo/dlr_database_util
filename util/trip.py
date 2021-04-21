@@ -3,6 +3,7 @@ from typing import Optional
 import pandas as pd
 from folium import Map
 import numpy as np
+from pandas import DataFrame
 
 from util import sql_get_osm_from_line, get_osm_prop, RailwayDatabase, elevation_pipeline, write_tpt_input_sheet, \
     write_sensor_input_sheet, read_tpt_output_sheet, add_inputs_to_simulation_results, resample_simulation_results, plot_osm, plot_trip_props
@@ -74,7 +75,6 @@ class Trip:
         self.elevation_profile = elevation_pipeline(elevation_profile, self.brunnels, **ele_kwargs)
 
         self.simulation_results = None
-
 
     def get_elevation(self, smoothed=True):
         """ if simulated also returns time column. """
@@ -151,6 +151,13 @@ class Trip:
         self.simulated = True
         self.simulation_results = tpt_df
 
+        # add delay column to timetable
+        simulated_arrival_time = self.timetable.apply(
+            lambda r: find_closest(self.simulation_results, 'distance', r['dist'])['time'], axis=1)
+        delay = simulated_arrival_time - self.timetable.arrival_time
+        self.timetable["delay"] = delay
+
+
     def plot_map(self, prop=None) -> Map:
         """
         Returns a folium map with the trip.
@@ -205,3 +212,21 @@ def clean_name(name: str) -> str:
     name = name[0].split('(')
 
     return name[0]
+
+
+def find_closest(df: DataFrame, col_name: str, value: any):
+    """
+    returns the row in "df", with the closest value to "value" in column "col_name"
+
+    Parameters
+    ----------
+    df
+    col_name
+    value
+
+    Returns
+    -------
+
+    """
+    index = abs(df[col_name] - value).idxmin()
+    return df.loc[index]
