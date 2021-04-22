@@ -75,6 +75,9 @@ def elevation_pipeline(elevation_profile: ElevationProfile, brunnels: DataFrame,
         elevation_profile = elevation_profile.smooth(window_size=smooth_window_size_2, poly_order=poly_order_2,
                                                      mode=mode)
 
+
+    # if there
+
     return elevation_profile
 
 

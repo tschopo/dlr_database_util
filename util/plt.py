@@ -92,7 +92,6 @@ def plot_trip_props(maxspeed, electrified, elevation_background, elevation_smoot
                     velocity: Optional[DataFrame] = None, power: Optional[DataFrame] = None,
                     timetable: Optional[DataFrame] = None, x_time: bool = False, color_monotone=None,
                     elevation_plot_height=100, elevation_overshoot=0.15, interactive: bool = False):
-
     # ideas: add stations to elevation and maxspeed (points on the line)
     # add timetable plot (like electrified, with station names and color is the duration between the stations?)
     # interactivity: scrolling, zooming, highlighting
@@ -111,19 +110,22 @@ def plot_trip_props(maxspeed, electrified, elevation_background, elevation_smoot
     if interactive:
         elevation_overshoot = 0
 
-    chart_maxspeed = plot_maxspeeds(maxspeed, velocity=velocity, x_time=x_time, color=maxspeed_color, hide_x=True, x_top=True)
+    chart_maxspeed = plot_maxspeeds(maxspeed, velocity=velocity, x_time=x_time, color=maxspeed_color, hide_x=True,
+                                    x_top=True)
     chart_electrified = plot_electrified(electrified, trip_length=trip_length, electrified_color=electrified_color,
                                          not_electrified_color=not_electrified_color, timetable=timetable)
 
     # add dummy plot due to vega bug
-    chart_electrified = (alt.Chart(timetable[['dist']]).mark_point(opacity=0).encode(x=alt.X('dist:Q', axis=None)).properties(
-        height=1) + chart_electrified)
+    chart_electrified = (
+                alt.Chart(timetable[['dist']]).mark_point(opacity=0).encode(x=alt.X('dist:Q', axis=None)).properties(
+                    height=1) + chart_electrified)
 
-    chart_elevation = plot_elevation(elevation_background, elevation_smoothed, color=elevation_color,
+    chart_elevation = plot_elevation(elevation_background, elevation_smoothed, trip_length=trip_length,
+                                     color=elevation_color,
                                      elevation_overshoot=elevation_overshoot, hide_x=True)
     chart_power = None
     if power is not None:
-        chart_power = plot_power(power,  hide_x=False).properties(width=1000,height=200)
+        chart_power = plot_power(power, hide_x=False).properties(width=1000, height=200)
 
     chart_maxspeed = chart_maxspeed \
         .properties(width=1000, height=100)
@@ -159,7 +161,7 @@ def plot_trip_props(maxspeed, electrified, elevation_background, elevation_smoot
 
 
 def plot_maxspeeds(maxspeed: DataFrame, velocity: Optional[DataFrame] = None, color=None, x_time: bool = False,
-                   dist_time_mapping: Optional[DataFrame] = None, hide_x =False, x_top=False) -> alt.Chart:
+                   dist_time_mapping: Optional[DataFrame] = None, hide_x=False, x_top=False) -> alt.Chart:
     """
 
     Parameters
@@ -234,7 +236,8 @@ def plot_maxspeeds(maxspeed: DataFrame, velocity: Optional[DataFrame] = None, co
                   title='',
                   scale=alt.Scale(domain=(0, max(maxspeed.end_dist)), clamp=True, nice=False))
     else:
-        x = alt.X('distance:Q', scale=alt.Scale(nice=False), axis=alt.Axis(format="~s", orient=x_pos), title='distance (m)')
+        x = alt.X('distance:Q', scale=alt.Scale(nice=False), axis=alt.Axis(format="~s", orient=x_pos),
+                  title='distance (m)')
 
     maxspeed_fill_chart = alt.Chart(maxspeed_chart_data).mark_area(
         fill=color,  # "#c6dbef", #"lightgray",
@@ -248,8 +251,10 @@ def plot_maxspeeds(maxspeed: DataFrame, velocity: Optional[DataFrame] = None, co
     )
 
     if velocity is not None:
-        velocity_chart = alt.Chart(velocity).mark_area(line={'color': color, 'opacity': 0.75, 'strokeWidth': 2}, color=fill_color, opacity=0.5).encode(
-            y=alt.Y('velocity:Q', scale=alt.Scale(domain=(0, max(maxspeed_chart_data.maxspeed) + 2), nice=False), axis=alt.Axis(title='v_max, velocity (km/h)')),
+        velocity_chart = alt.Chart(velocity).mark_area(line={'color': color, 'opacity': 0.75, 'strokeWidth': 2},
+                                                       color=fill_color, opacity=0.5).encode(
+            y=alt.Y('velocity:Q', scale=alt.Scale(domain=(0, max(maxspeed_chart_data.maxspeed) + 2), nice=False),
+                    axis=alt.Axis(title='v_max, velocity (km/h)')),
             x=x)
 
         return maxspeed_fill_chart + maxspeed_caps_chart + velocity_chart
@@ -257,7 +262,7 @@ def plot_maxspeeds(maxspeed: DataFrame, velocity: Optional[DataFrame] = None, co
     return maxspeed_fill_chart + maxspeed_caps_chart
 
 
-def plot_elevation(elevation_background: DataFrame, elevation_smoothed: DataFrame,
+def plot_elevation(elevation_background: DataFrame, elevation_smoothed: DataFrame, trip_length,
                    color: Optional[str] = None, elevation_overshoot: float = 0.15, hide_x=False) -> alt.Chart:
     """
 
@@ -289,18 +294,18 @@ def plot_elevation(elevation_background: DataFrame, elevation_smoothed: DataFram
         x = alt.X('distance:Q', axis=alt.Axis(labels=False, ticks=False, tickRound=True),
                   title='',
                   scale=alt.Scale(
-                      domain=(0, max(elevation_background.distance)),
+                      domain=(0, trip_length),
                       clamp=True,
                       nice=False))
     else:
         x = alt.X('distance:Q',
                   axis=alt.Axis(format="~s", title='distance (m)'),
                   scale=alt.Scale(
-                      domain=(0, max(elevation_background.distance)),
+                      domain=(0, trip_length),
                       nice=False))
 
     if elevation_background is not None:
-        #alt.Chart(elevation_smoothed).mark_area(color=color, opacity=0.2).encode(x='distance:Q', y='elevation:Q') +
+        # alt.Chart(elevation_smoothed).mark_area(color=color, opacity=0.2).encode(x='distance:Q', y='elevation:Q') +
         chart = alt.Chart(elevation_background) \
                     .mark_line(color='#ccc') \
                     .encode(
@@ -311,7 +316,8 @@ def plot_elevation(elevation_background: DataFrame, elevation_smoothed: DataFram
                         domain=(min_ele, max_ele)),
                     axis=alt.Axis(title='elevation (m)')
                     )) \
-                + alt.Chart(elevation_smoothed).mark_line(color=color, strokeWidth=2).encode(x='distance:Q', y='elevation:Q')
+                + alt.Chart(elevation_smoothed).mark_line(color=color, strokeWidth=2).encode(x='distance:Q',
+                                                                                             y='elevation:Q')
     else:
         chart = alt.Chart(elevation_smoothed) \
             .mark_line(color=color) \
@@ -325,7 +331,6 @@ def plot_elevation(elevation_background: DataFrame, elevation_smoothed: DataFram
 
 def plot_electrified(electrified: DataFrame, trip_length, electrified_color: Optional[str] = None,
                      not_electrified_color: Optional[str] = None, hide_x=False, timetable: Optional[DataFrame] = None):
-
     data = {'y': ['electrified'] * electrified.shape[0],
             'electrified': np.where(electrified.electrified.values == 1, 'yes', 'no'),
             'distance': electrified.end_dist - electrified.start_dist, 'start_dist': electrified.start_dist}
@@ -361,7 +366,7 @@ def plot_electrified(electrified: DataFrame, trip_length, electrified_color: Opt
                         scale=alt.Scale(
                             domain=['yes', 'no'],
                             range=[electrified_color, not_electrified_color]),
-                        legend=alt.Legend(orient="bottom-right", direction ='horizontal', offset=80)
+                        legend=alt.Legend(orient="bottom-right", direction='horizontal', offset=80)
                         ),
         order=alt.Order(
             # Sort the segments of the bars by this field
@@ -408,7 +413,8 @@ def plot_electrified(electrified: DataFrame, trip_length, electrified_color: Opt
 
         station_points = alt.Chart(timetable_chart_data).mark_point(color='#333', filled=True, yOffset=-15).encode(
             x='dist:Q', y=alt.Y('station_point_pos', scale=alt.Scale(domain=[0], range=[0]), axis=None))
-        station_names = alt.Chart(timetable_chart_data).mark_text(opacity=0.8, align='left', angle=315, dx=15, dy=-10).encode(
+        station_names = alt.Chart(timetable_chart_data).mark_text(opacity=0.8, align='left', angle=315, dx=15,
+                                                                  dy=-10).encode(
             x=alt.X('dist:Q', scale=alt.Scale(nice=False), axis=alt.Axis(format="~s")),
             text=alt.Text('stop_name:N')).properties(width=1000)
         station_times = alt.Chart(timetable_chart_data).mark_text(opacity=0.8, align='center', angle=0, dy=12).encode(
@@ -432,15 +438,12 @@ def plot_electrified(electrified: DataFrame, trip_length, electrified_color: Opt
         else:
             electrified_chart = electrified_chart + station_points + station_names + station_times
 
-
-
         electrified_chart = electrified_chart + station_points + station_names + station_times
 
     return electrified_chart
 
 
 def plot_power(power: DataFrame, pos_color='#9ecae1', neg_color='#d62728', hide_x=False):
-
     if hide_x:
         x = alt.X('distance:Q', axis=alt.Axis(labels=False, ticks=False, tickRound=True),
                   title='',
@@ -453,7 +456,7 @@ def plot_power(power: DataFrame, pos_color='#9ecae1', neg_color='#d62728', hide_
     ).mark_area(opacity=0.75).encode(
         x=x,
         y=alt.Y('power:Q', impute={'value': 0},
-                scale=alt.Scale(nice=False, domain=[power.power.min()*0.75, power.power.max()], clamp=False),
+                scale=alt.Scale(nice=False, domain=[power.power.min() * 0.75, power.power.max()], clamp=False),
                 axis=alt.Axis(format="~s", title='power (W)')),
         color=alt.Color('negative:N', legend=None, scale=alt.Scale(domain=[False, True], range=[neg_color, pos_color]))
     )
