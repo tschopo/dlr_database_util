@@ -30,10 +30,10 @@ class Trip:
         # get shape from database
         shape = railway_db.get_trip_shape(trip_id, dem.crs)
 
-        self.trip_geom = shape["geom"]
+        self.geom = shape["geom"]
 
         # get osm data from osm table
-        self.osm_data = sql_get_osm_from_line(self.trip_geom, railway_db.engine, **osm_kwargs)
+        self.osm_data = sql_get_osm_from_line(self.geom, railway_db.engine, **osm_kwargs)
 
         # get timetable data from database
         self.timetable = railway_db.get_trip_timetable(self.trip_id)
@@ -63,13 +63,13 @@ class Trip:
         self.maxspeed = get_osm_prop(self.osm_data, "maxspeed")
 
         # TODO set maxspeed endist correctly by get_osm
-        self.length = self.trip_geom.length.iloc[0]
+        self.length = self.geom.length.iloc[0]
         self.maxspeed.at[self.maxspeed.shape[0]-1, 'end_dist'] = self.length + 1
         self.electrified.at[self.electrified.shape[0] - 1, 'end_dist'] = self.length + 1
 
         self.brunnels = get_osm_prop(self.osm_data, "brunnel", brunnel_filter_length=brunnel_filter_length)
 
-        elevation_profile = dem.elevation_profile(self.trip_geom, distance=first_sample_distance,
+        elevation_profile = dem.elevation_profile(self.geom, distance=first_sample_distance,
                                                   interpolated=interpolated)
 
         self.elevation_profile = elevation_pipeline(elevation_profile, self.brunnels, **ele_kwargs)

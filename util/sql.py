@@ -52,7 +52,7 @@ class RailwayDatabase:
         return shape
 
     def get_trip_timetable(self, trip_id: int, min_stop_duration: float = 30.,
-                           round_int: bool = True) -> DataFrame:
+                           round_int: bool = True, filter=True) -> DataFrame:
         # distance from start
         # station name
         # stop time at station in s
@@ -79,45 +79,54 @@ class RailwayDatabase:
         order by stop_sequence, departure_time
         """
 
-        time_table = pd.read_sql_query(text(sql), con=self.engine, params={"trip_id": trip_id})
+        timetable = pd.read_sql_query(text(sql), con=self.engine, params={"trip_id": trip_id})
+
+        if filter:
+            # for '1957658_Wernigerode - Ilfeld'
+            # filter stations that end with "001 P1", "002 P2"
+            # sometimes in the gtfs the geometries are added as stations
+            timetable = timetable[~timetable.stop_name.str.contains('\d\d\d P\d')]
 
         s15 = pd.Timedelta(min_stop_duration * 0.5, unit="s")
 
-        last_stop = time_table.stop_sequence.iloc[-1]
-        first_stop = time_table.stop_sequence.iloc[0]
+        last_stop = timetable.stop_sequence.iloc[-1]
+        first_stop = timetable.stop_sequence.iloc[0]
 
         # ignore first and last station
-        ign_frst_last = (time_table.stop_sequence > first_stop) & (time_table.stop_sequence < last_stop)
-        arr_eq_dep = ign_frst_last & (time_table.departure_time == time_table.arrival_time)
+        ign_frst_last = (timetable.stop_sequence > first_stop) & (timetable.stop_sequence < last_stop)
+        arr_eq_dep = ign_frst_last & (timetable.departure_time == timetable.arrival_time)
 
         # Assumption: trains stop at least 30s
         # if arrival time = departure time, then arrival time -15 and departure time + 15
-        time_table.loc[arr_eq_dep, ["arrival_time"]] -= s15
-        time_table.loc[arr_eq_dep, ["departure_time"]] += s15
+        timetable.loc[arr_eq_dep, ["arrival_time"]] -= s15
+        timetable.loc[arr_eq_dep, ["departure_time"]] += s15
 
         # stop duration = departure - arrival
-        time_table["stop_duration"] = (time_table.departure_time - time_table.arrival_time).dt.total_seconds()
+        timetable["stop_duration"] = (timetable.departure_time - timetable.arrival_time).dt.total_seconds()
 
         # driving time to next station:
         # take arrival time of next station and subtract departure time
-        driving_time = time_table.arrival_time[1:].dt.total_seconds().values - time_table.departure_time[
+        driving_time = timetable.arrival_time[1:].dt.total_seconds().values - timetable.departure_time[
                                                                                :-1].dt.total_seconds().values
 
         driving_time = np.append(driving_time, 0)
 
-        time_table["driving_time"] = driving_time
+        timetable["driving_time"] = driving_time
 
         # delete rows where driving time to next station is 0 (except last row)
-        keep = time_table["driving_time"].values != 0
+        keep = timetable["driving_time"].values != 0
         keep[-1] = True
-        time_table = time_table[keep]
+        timetable = timetable[keep]
+
+        # reset index
+        timetable.reset_index(drop=True, inplace=True)
 
         if round_int:
-            time_table["dist"] = np.rint(time_table["dist"]).astype(int)
-            time_table["stop_duration"] = np.rint(time_table["stop_duration"]).astype(int)
-            time_table["driving_time"] = np.rint(time_table["driving_time"]).astype(int)
+            timetable["dist"] = np.rint(timetable["dist"]).astype(int)
+            timetable["stop_duration"] = np.rint(timetable["stop_duration"]).astype(int)
+            timetable["driving_time"] = np.rint(timetable["driving_time"]).astype(int)
 
-        return time_table[["dist", "stop_name", "stop_duration", "driving_time", "arrival_time", "departure_time"]]
+        return timetable[["dist", "stop_name", "stop_duration", "driving_time", "arrival_time", "departure_time"]]
 
     def get_trip_stops(self, trip_id: int) -> Union[DataFrame, Tuple[str, DataFrame]]:
         sql = """

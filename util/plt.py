@@ -408,10 +408,10 @@ def plot_electrified(electrified: DataFrame, trip_length, electrified_color: Opt
 
         station_points = alt.Chart(timetable_chart_data).mark_point(color='#333', filled=True, yOffset=-15).encode(
             x='dist:Q', y=alt.Y('station_point_pos', scale=alt.Scale(domain=[0], range=[0]), axis=None))
-        station_names = alt.Chart(timetable_chart_data).mark_text(align='left', angle=315, dx=15, dy=-10).encode(
+        station_names = alt.Chart(timetable_chart_data).mark_text(opacity=0.8, align='left', angle=315, dx=15, dy=-10).encode(
             x=alt.X('dist:Q', scale=alt.Scale(nice=False), axis=alt.Axis(format="~s")),
             text=alt.Text('stop_name:N')).properties(width=1000)
-        station_times = alt.Chart(timetable_chart_data).mark_text(align='center', angle=0, dy=12).encode(
+        station_times = alt.Chart(timetable_chart_data).mark_text(opacity=0.8, align='center', angle=0, dy=12).encode(
             x=alt.X('dist:Q', scale=alt.Scale(nice=False), axis=alt.Axis(format="~s")),
             y=alt.Y('time_label_pos', axis=None, scale=alt.Scale(nice=False)),
             text=alt.Text('arrival_time:T', timeUnit='hoursminutes')).properties(width=1000, height=20)
