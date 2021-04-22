@@ -157,7 +157,6 @@ class Trip:
         delay = simulated_arrival_time - self.timetable.arrival_time
         self.timetable["delay"] = delay
 
-
     def plot_map(self, prop=None) -> Map:
         """
         Returns a folium map with the trip.
@@ -191,7 +190,7 @@ class Trip:
 
         """
 
-        if not show_delay:
+        if not show_delay or not self.simulated:
             timetable = self.timetable[['dist', 'stop_name', 'arrival_time']]
         else:
             timetable = self.timetable[['dist', 'stop_name', 'arrival_time', 'delay']]
