@@ -92,7 +92,9 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
         FROM {schema}.{table}
         WHERE ST_intersects(ST_GeomFromText(:linestring,:srid),st_buffer({geom_column},:intersect_buffer))
         """.format(schema=schema, table=table, geom_column=geom_column)
-    osm_data = gpd.read_postgis(text(sql), geom_col='geom', con=engine,
+
+    with engine.connect() as connection:
+        osm_data = gpd.read_postgis(text(sql), geom_col='geom', con=connection,
                                 params={"linestring": linestring.wkt, "srid": table_srid,
                                         "intersect_buffer": get_osm_buffer})
 

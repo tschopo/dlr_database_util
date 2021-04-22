@@ -44,7 +44,9 @@ class RailwayDatabase:
             WHERE geo_trips.shape_id = geo_shape_geoms.shape_id
             AND geo_trips.trip_id = :trip_id
             """
-        shape = gpd.read_postgis(text(sql), con=self.engine, params={"trip_id": int(trip_id)}, geom_col='geom')
+
+        with self.engine.connect() as connection:
+            shape = gpd.read_postgis(text(sql), con=connection, params={"trip_id": int(trip_id)}, geom_col='geom')
 
         if crs:
             shape = shape.to_crs(crs)
@@ -79,7 +81,8 @@ class RailwayDatabase:
         order by stop_sequence, departure_time
         """
 
-        timetable = pd.read_sql_query(text(sql), con=self.engine, params={"trip_id": trip_id})
+        with self.engine.connect() as connection:
+            timetable = pd.read_sql_query(text(sql), con=connection, params={"trip_id": trip_id})
 
         if filter:
             # for '1957658_Wernigerode - Ilfeld'
@@ -140,7 +143,8 @@ class RailwayDatabase:
         order by stop_sequence;
         """
 
-        stops = pd.read_sql_query(text(sql), con=self.engine, params={"trip_id": int(trip_id)})
+        with self.engine.connect() as connection:
+            stops = pd.read_sql_query(text(sql), con=connection, params={"trip_id": int(trip_id)})
 
         # stops = gpd.read_postgis(text(sql), geom_col='geom', con=engine, params={"trip_id": trip_id})
 
