@@ -135,7 +135,7 @@ class Trip:
             return write_sensor_input_sheet(self.title, self.timetable, self.electrified, self.maxspeed, inclination,
                                             folder=folder)
 
-    def add_simulation_results(self, output_sheet, t=10):
+    def add_simulation_results(self, output_sheet, t=10, train_length=100):
         tpt_df = read_tpt_output_sheet(output_sheet)
 
         if t is not None:
@@ -151,8 +151,9 @@ class Trip:
         self.simulation_results = tpt_df
 
         # add delay column to timetable
+        # find the simulation time at distance of station
         simulated_arrival_time = self.timetable.apply(
-            lambda r: find_closest(self.simulation_results, 'distance', r['dist'])['time'], axis=1)
+            lambda r: find_closest(self.simulation_results, 'distance', r['dist']-(train_length/2))['time'], axis=1)
         delay = simulated_arrival_time - self.timetable.arrival_time
         self.timetable["delay"] = delay
 

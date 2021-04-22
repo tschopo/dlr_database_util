@@ -182,6 +182,9 @@ def get_trip_where_no_osm(trip_geom: GeoSeries, osm_data: GeoDataFrame, buffer_s
 
     # get the difference of the single geom with the trip geom to detect the missing segments
     missing_mask = trip_geom.iloc[0].difference(correct_geom)
+
+    if missing_mask.geom_type == 'LineString':
+        missing_mask = [missing_mask]
     missing_trip_segments = gpd.GeoDataFrame({'geometry': missing_mask}, crs=osm_data.crs)
 
     # there are a bunch of tiny segments
