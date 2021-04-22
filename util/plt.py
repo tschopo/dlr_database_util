@@ -120,12 +120,14 @@ def plot_trip_props(maxspeed, electrified, elevation_background, elevation_smoot
                 alt.Chart(timetable[['dist']]).mark_point(opacity=0).encode(x=alt.X('dist:Q', axis=None)).properties(
                     height=1) + chart_electrified)
 
+    hide_x = False if power is None else True
     chart_elevation = plot_elevation(elevation_background, elevation_smoothed, trip_length=trip_length,
                                      color=elevation_color,
-                                     elevation_overshoot=elevation_overshoot, hide_x=True)
+                                     elevation_overshoot=elevation_overshoot, hide_x=hide_x)
     chart_power = None
     if power is not None:
-        chart_power = plot_power(power, hide_x=False).properties(width=1000, height=200)
+        hide_x = not hide_x
+        chart_power = plot_power(power, hide_x=hide_x).properties(width=1000, height=200)
 
     chart_maxspeed = chart_maxspeed \
         .properties(width=1000, height=100)
