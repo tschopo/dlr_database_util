@@ -421,7 +421,12 @@ def plot_electrified(electrified: DataFrame, trip_length, electrified_color: Opt
                                                                        dy=25).encode(
                 x=alt.X('dist:Q', scale=alt.Scale(nice=False), axis=alt.Axis(format="~s")),
                 y=alt.Y('time_label_pos', axis=None, scale=alt.Scale(nice=False)),
-                text=alt.Text('delay_labels:N')).properties(width=1000, height=20)
+                text=alt.Text('delay_labels:N'),
+                color=alt.Color('delay:Q',
+                                scale=alt.Scale(scheme='redyellowgreen', reverse=True, domain=[0, 120], clamp=True),
+                                legend=None,
+                                )
+            ).properties(width=1000, height=20)
 
             electrified_chart = electrified_chart + station_points + station_names + station_times + station_delays
         else:

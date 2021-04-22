@@ -176,7 +176,7 @@ class Trip:
         m = plot_osm(self.osm_data, prop=prop)
         return m
 
-    def summary_chart(self, save=False, filename: Optional[str] = None, folder=None, **kwargs):
+    def summary_chart(self, save=False, filename: Optional[str] = None, folder=None, show_delay=True, **kwargs):
         """
 
         Parameters
@@ -190,9 +190,14 @@ class Trip:
 
         """
 
+        if not show_delay:
+            timetable = self.timetable[['dist', 'stop_name', 'arrival_time']]
+        else:
+            timetable = self.timetable[['dist', 'stop_name', 'arrival_time', 'delay']]
+
         chart = plot_trip_props(self.maxspeed, self.electrified, self.get_elevation(smoothed=False),
                                 self.get_elevation(smoothed=True), self.title, self.length, velocity=self.get_velocity(),
-                                power=self.get_power(), timetable=self.timetable, **kwargs)
+                                power=self.get_power(), timetable=timetable, **kwargs)
 
         if save:
             folder = '' if folder is None else folder + '/'
