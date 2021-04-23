@@ -683,8 +683,14 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
                 props.reset_index(drop=True, inplace=True)
 
     if round_int:
-        props["start_dist"] = np.rint(props["start_dist"]).astype(int)
-        props["end_dist"] = np.rint(props["end_dist"]).astype(int)
+
+        if prop == "brunnel":
+            # for brunnels we have to prevent that enddist = next start_dist
+            props["start_dist"] = np.ceil(props["start_dist"]).astype(int)
+            props["end_dist"] = np.floor(props["end_dist"]).astype(int)
+        else:
+            props["start_dist"] = np.rint(props["start_dist"]).astype(int)
+            props["end_dist"] = np.rint(props["end_dist"]).astype(int)
 
         if prop == "maxspeed":
             props["maxspeed"] = np.rint(props["maxspeed"]).astype(int)
