@@ -62,10 +62,13 @@ class Trip:
         self.electrified = get_osm_prop(self.osm_data, "electrified")
         self.maxspeed = get_osm_prop(self.osm_data, "maxspeed")
 
-        # TODO set maxspeed endist correctly by get_osm
+        # set the enddists to trip length
         self.length = self.geom.length.iloc[0]
         self.maxspeed.at[self.maxspeed.shape[0]-1, 'end_dist'] = self.length + 1
         self.electrified.at[self.electrified.shape[0] - 1, 'end_dist'] = self.length + 1
+
+        # also timetable dists don't align perfectly
+        self.timetable.at[self.timetable.shape[0] - 1, 'dist'] = self.length
 
         self.brunnels = get_osm_prop(self.osm_data, "brunnel", brunnel_filter_length=brunnel_filter_length)
 
@@ -151,10 +154,20 @@ class Trip:
         self.simulation_results = tpt_df
 
         # add delay column to timetable
-        # find the simulation time at distance of station
+        # calculate delay by calculating tpt driving time
         simulated_arrival_time = self.timetable.apply(
             lambda r: find_closest(self.simulation_results, 'distance', r['dist']-(train_length/2))['time'], axis=1)
-        delay = simulated_arrival_time - self.timetable.arrival_time
+        self.timetable["simulated_arrival_time"] = simulated_arrival_time
+
+        simulated_departure_time = self.timetable.apply(
+            lambda r: find_closest(self.simulation_results, 'distance', r['dist']+(train_length/2),
+                                   first_occurrence=False)['time'], axis=1)
+        self.timetable["simulated_departure_time"] = simulated_departure_time
+
+        simulated_driving_time = simulated_arrival_time.shift(-1) - simulated_departure_time
+        #simulated_driving_time.iat[-1] = 0
+        delay = simulated_driving_time - pd.to_timedelta(self.timetable['driving_time'], unit='S')
+        #delay.at[0] = 0
         self.timetable["delay"] = delay
 
     def plot_map(self, prop=None) -> Map:
@@ -218,7 +231,7 @@ def clean_name(name: str) -> str:
     return name[0]
 
 
-def find_closest(df: DataFrame, col_name: str, value: any):
+def find_closest(df: DataFrame, col_name: str, value: any, first_occurrence=True):
     """
     returns the row in "df", with the closest value to "value" in column "col_name"
 
@@ -227,10 +240,16 @@ def find_closest(df: DataFrame, col_name: str, value: any):
     df
     col_name
     value
+    first_occurrence
+        If True takes the first occurance of closest value, if False takes the last occurance of closest value.
 
     Returns
     -------
 
     """
-    index = abs(df[col_name] - value).idxmin()
+
+    if first_occurrence:
+        index = np.abs(df[col_name] - value).idxmin()
+    else:
+        index = np.abs(df[col_name] - value)[::-1].idxmin()
     return df.loc[index]

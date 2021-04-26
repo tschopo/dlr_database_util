@@ -795,6 +795,9 @@ def get_maxspeed_at_dist(maxspeed: DataFrame, dist: float) -> Union[float, int]:
     -------
 
     """
+
+    if dist > maxspeed.end_dist.iloc[-1]:
+        return maxspeed["maxspeed"].iloc[-1]
     return maxspeed[(maxspeed.start_dist <= dist) & (maxspeed.end_dist >= dist)]["maxspeed"].iloc[0]
 
 
@@ -811,6 +814,8 @@ def get_electrified_at_dist(electrified: DataFrame, dist: float) -> int:
     -------
 
     """
+    if dist > electrified.end_dist.iloc[-1]:
+        return electrified["electrified"].iloc[-1]
     return electrified[(electrified.start_dist <= dist) & (electrified.end_dist >= dist)]["electrified"].iloc[0]
 
 

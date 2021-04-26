@@ -586,6 +586,7 @@ def read_tpt_output_sheet(file, version=2):
 
 def add_inputs_to_simulation_results(tpt_df, elevation, maxspeed, electrified):
     # resample the inputs so the distances match the simulation distances
+
     tpt_df[['elevation', 'maxspeed', 'electrified']] = tpt_df.apply(
         lambda r: pd.Series([get_elevation_at_dist(elevation, r["distance"]),
                              get_maxspeed_at_dist(maxspeed, r["distance"]),
