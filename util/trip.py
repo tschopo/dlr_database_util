@@ -156,11 +156,11 @@ class Trip:
         # add delay column to timetable
         # calculate delay by calculating tpt driving time
         simulated_arrival_time = self.timetable.apply(
-            lambda r: find_closest(self.simulation_results, 'distance', r['dist']-(train_length/2))['time'], axis=1)
+            lambda r: find_closest(self.simulation_results, 'distance', r['dist']-(10))['time'], axis=1)
         self.timetable["simulated_arrival_time"] = simulated_arrival_time
 
         simulated_departure_time = self.timetable.apply(
-            lambda r: find_closest(self.simulation_results, 'distance', r['dist']+(train_length/2),
+            lambda r: find_closest(self.simulation_results, 'distance', r['dist']+(10),
                                    first_occurrence=False)['time'], axis=1)
         self.timetable["simulated_departure_time"] = simulated_departure_time
 
@@ -168,7 +168,7 @@ class Trip:
         #simulated_driving_time.iat[-1] = 0
         delay = simulated_driving_time - pd.to_timedelta(self.timetable['driving_time'], unit='S')
         #delay.at[0] = 0
-        self.timetable["delay"] = delay
+        self.timetable["delay"] = delay.shift(1)
 
     def plot_map(self, prop=None) -> Map:
         """
