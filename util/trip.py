@@ -1,100 +1,112 @@
-from typing import Optional
+from typing import Optional, List
 
 import pandas as pd
+from ElevationSampler import DEM, ElevationProfile
 from folium import Map
 import numpy as np
+from geopandas import GeoSeries
 from pandas import DataFrame
+from sqlalchemy.engine import Engine
 
 from util import sql_get_osm_from_line, get_osm_prop, RailwayDatabase, elevation_pipeline, write_tpt_input_sheet, \
-    write_sensor_input_sheet, read_tpt_output_sheet, add_inputs_to_simulation_results, resample_simulation_results, plot_osm, plot_trip_props
+    write_sensor_input_sheet, read_tpt_output_sheet, add_inputs_to_simulation_results, resample_simulation_results, \
+    plot_trip_props
 
 
 class Trip:
     """
-    collection of data that belongs to a trip
+    collection of data that belongs to a trip + functions on the data
     """
 
-    def __init__(self, trip_id, railway_db: RailwayDatabase, dem, date="2021-01-01", first_sample_distance: float = 10.0,
-                 brunnel_filter_length: float = 10., interpolated: bool = True, ele_kwargs=None,
-                 osm_kwargs=None):
+    def __init__(self, trip_id, electrified, maxspeed, brunnels, timetable, elevation_profile, trip_geom):
+        """
 
-        if osm_kwargs is None:
-            osm_kwargs = {}
-        if ele_kwargs is None:
-            ele_kwargs = {}
+        Parameters
+        ----------
+        trip_id
+        electrified
+        maxspeed
+        brunnels
+        timetable
+            DataFrame with Columns: "dist", "stop_name", "stop_duration", "driving_time", "arrival_time",
+            "departure_time"
+                dist: float, station distance from start
+                stop_name: str
+                stop_duration: int, in seconds
+                driving_time: int, driving time to next station in seconds
+                arrival_time: datetime object
+                departure_time: datetime object
+        elevation_profile
+        trip_geom
+        """
 
-        self.simulated = False
-        self.trip_id = int(trip_id)
-        self.crs = dem.crs
+        self.simulated: bool = False
 
-        # get shape from database
-        shape = railway_db.get_trip_shape(trip_id, dem.crs)
+        self.trip_id: int = int(trip_id)
+        self.geom: GeoSeries = trip_geom
+        self.timetable = timetable
+        self.electrified: DataFrame = electrified
+        self.maxspeed: DataFrame = maxspeed
+        self.brunnels: DataFrame = brunnels
+        self.elevation_profile: ElevationProfile = elevation_profile
 
-        self.geom = shape["geom"]
+        # TODO add time_delta column that starts at 0
+        # timetable['time_delta'] = timetable["arrival_time"] - timetable.iloc[0]["arrival_time"]
 
-        # get osm data from osm table
-        self.osm_data = sql_get_osm_from_line(self.geom, railway_db.engine, **osm_kwargs)
+        self.start_time: np.datetime64 = self.timetable.iloc[0]["arrival_time"]
+        self.end_time: np.datetime64 = self.timetable.iloc[-1]["arrival_time"]
+        # TODO should be timedelta in Seconds? jsut take last element of timetable['time_delta']
+        # self.duration = self.end_time - self.start_time
 
-        # get timetable data from database
-        self.timetable = railway_db.get_trip_timetable(self.trip_id)
+        self.start_station: str = self.timetable["stop_name"].iloc[0]
+        self.end_station: str = self.timetable["stop_name"].iloc[-1]
 
-        # add time_delta column that starts at 0
-        self.timetable['time_delta'] = self.timetable["arrival_time"] - self.timetable.iloc[0]["arrival_time"]
+        self.title: str = str(trip_id) + "_" + clean_name(self.start_station) + " - " + clean_name(self.end_station)
 
-        # convert the timetable arrival and start time to datetime instead of timedelta
-        self.timetable["arrival_time"] = np.datetime64(date) + self.timetable.arrival_time
-        self.timetable["departure_time"] = np.datetime64(date) + self.timetable.departure_time
+        # set the enddists to trip length
+        self.length: float = self.geom.length.iloc[0]
 
-        self.warnings = []
+        self.maxspeed.at[self.maxspeed.shape[0]-1, 'end_dist'] = np.ceil(self.length)
+        self.electrified.at[self.electrified.shape[0] - 1, 'end_dist'] = np.ceil(self.length)
+
+        # also timetable dists don't align perfectly
+        self.timetable.at[self.timetable.shape[0] - 1, 'dist'] = self.length
+
+        self.warnings: List[str] = []
         # set dist to 0 for first station
         if self.timetable.iloc[0]["dist"] > 250:
             self.warnings.append("WARNING: First Station far away")
         self.timetable.iloc[0, self.timetable.columns.get_loc("dist")] = 0
 
-        self.start_time = self.timetable.iloc[0]["arrival_time"]
-        self.end_time = self.timetable.iloc[-1]["arrival_time"]
+        self.simulation_results: Optional[DataFrame] = None
 
-        self.start_station = self.timetable["stop_name"].iloc[0]
-        self.end_station = self.timetable["stop_name"].iloc[-1]
+    def get_stations(self) -> List[str]:
+        """
 
-        self.title = str(trip_id) + "_" + clean_name(self.start_station) + " - " + clean_name(self.end_station)
+        Returns
+        -------
+        List[str]
+            List of station names in order of arrival
 
-        self.electrified = get_osm_prop(self.osm_data, "electrified")
-        self.maxspeed = get_osm_prop(self.osm_data, "maxspeed")
-
-        # set the enddists to trip length
-        self.length = self.geom.length.iloc[0]
-        self.maxspeed.at[self.maxspeed.shape[0]-1, 'end_dist'] = self.length + 1
-        self.electrified.at[self.electrified.shape[0] - 1, 'end_dist'] = self.length + 1
-
-        # also timetable dists don't align perfectly
-        self.timetable.at[self.timetable.shape[0] - 1, 'dist'] = self.length
-
-        self.brunnels = get_osm_prop(self.osm_data, "brunnel", brunnel_filter_length=brunnel_filter_length)
-
-        elevation_profile = dem.elevation_profile(self.geom, distance=first_sample_distance,
-                                                  interpolated=interpolated)
-
-        self.elevation_profile = elevation_pipeline(elevation_profile, self.brunnels, **ele_kwargs)
-
-        self.simulation_results = None
+        """
+        raise NotImplementedError
 
     def get_elevation(self, smoothed=True):
         """ if simulated also returns time column. """
 
-        # TODO: make optional equidistant time ot equidistant distance
-
+        # TODO: make optional equidistant time or equidistant distance
         if smoothed:
             data = {"elevation": self.elevation_profile.elevations, "distance": self.elevation_profile.distances}
-
         else:
-            data = {"elevation": self.elevation_profile.elevations_orig, "distance": self.elevation_profile.distances_orig}
+            data = {"elevation": self.elevation_profile.elevations_orig,
+                    "distance": self.elevation_profile.distances_orig}
 
         return pd.DataFrame(data)
 
     def get_velocity(self, delta_t=10):
         if self.simulated:
-            velocity = resample_simulation_results(self.simulation_results[["time_delta", "distance", "time", "velocity"]], t=delta_t)
+            velocity = resample_simulation_results(
+                self.simulation_results[["time_delta", "distance", "time", "velocity"]], t=delta_t)
             velocity = velocity[["distance", "time", "velocity"]]
         else:
             velocity = None
@@ -102,7 +114,8 @@ class Trip:
 
     def get_power(self, delta_t=10):
         if self.simulated:
-            power = resample_simulation_results(self.simulation_results[["time_delta", "distance", "time", "power"]], t=delta_t)
+            power = resample_simulation_results(
+                self.simulation_results[["time_delta", "distance", "time", "power"]], t=delta_t)
             power = power[["distance", "time", "power"]]
         else:
             power = None
@@ -138,7 +151,7 @@ class Trip:
             return write_sensor_input_sheet(self.title, self.timetable, self.electrified, self.maxspeed, inclination,
                                             folder=folder)
 
-    def add_simulation_results(self, output_sheet, t=10, train_length=100):
+    def add_simulation_results(self, output_sheet, t=10):
         tpt_df = read_tpt_output_sheet(output_sheet)
 
         if t is not None:
@@ -156,18 +169,16 @@ class Trip:
         # add delay column to timetable
         # calculate delay by calculating tpt driving time
         simulated_arrival_time = self.timetable.apply(
-            lambda r: find_closest(self.simulation_results, 'distance', r['dist']-(10))['time'], axis=1)
+            lambda r: find_closest(self.simulation_results, 'distance', r['dist']-10)['time'], axis=1)
         self.timetable["simulated_arrival_time"] = simulated_arrival_time
 
         simulated_departure_time = self.timetable.apply(
-            lambda r: find_closest(self.simulation_results, 'distance', r['dist']+(10),
+            lambda r: find_closest(self.simulation_results, 'distance', r['dist']+10,
                                    first_occurrence=False)['time'], axis=1)
         self.timetable["simulated_departure_time"] = simulated_departure_time
 
         simulated_driving_time = simulated_arrival_time.shift(-1) - simulated_departure_time
-        #simulated_driving_time.iat[-1] = 0
         delay = simulated_driving_time - pd.to_timedelta(self.timetable['driving_time'], unit='S')
-        #delay.at[0] = 0
         self.timetable["delay"] = delay.shift(1)
 
     def plot_map(self, prop=None) -> Map:
@@ -185,11 +196,12 @@ class Trip:
                 Folium map
 
         """
+        raise NotImplementedError
 
-        m = plot_osm(self.osm_data, prop=prop)
-        return m
+        # m = plot_osm(self.osm_data, prop=prop)
+        # return m
 
-    def summary_chart(self, save=False, filename: Optional[str] = None, folder=None, show_delay=True, **kwargs):
+    def summary_chart(self, save=False, filename: Optional[str] = None, folder: str = None, show_delay=True, **kwargs):
         """
 
         Parameters
@@ -197,6 +209,10 @@ class Trip:
         save
         filename
             If none uses trip title as filename. must end with '.png'.
+        folder
+            If should save in sub-folder
+        show_delay
+            If the simulated delays should be plotted
 
         Returns
         -------
@@ -209,7 +225,8 @@ class Trip:
             timetable = self.timetable[['dist', 'stop_name', 'arrival_time', 'delay']]
 
         chart = plot_trip_props(self.maxspeed, self.electrified, self.get_elevation(smoothed=False),
-                                self.get_elevation(smoothed=True), self.title, self.length, velocity=self.get_velocity(),
+                                self.get_elevation(smoothed=True), self.title,
+                                self.length, velocity=self.get_velocity(),
                                 power=self.get_power(), timetable=timetable, **kwargs)
 
         if save:
@@ -219,12 +236,92 @@ class Trip:
 
         return chart
 
-    # def summary
-    # summary stats about the trip
-    # e_rad, e_break, n_stops, total_travel_time, trip_length
+    def summary(self):
+        # print summary stats about the trip, or return as dataframe
+        # e_rad_gesamt, e_rad_peak
+        # e_break_gesamt, e_break_peak,
+        # net_e (rad-break)
+        # n_stops, total_travel_time, trip_length,
+        # average velocity (when driving), peak velocity
+        # median_maxspeed, peak_maxspeed
+        # avg/min/max distance between stations,
+        # avg/min/max duration between stations,
+        # avg/min/max inline,
+        # avg/min/max elevation
+        # cum_ascent, cum_descent,
+        # net elevationgain,
+
+        raise NotImplementedError
+
+
+class TripGenerator:
+    # TODO implement caching so that trip is returned if already generated with same parameters
+
+    def __init__(self, dem: DEM, db_connection: Engine, first_sample_distance: float = 10.0,
+                 brunnel_filter_length: float = 10., interpolated: bool = True, ele_pipeline_kwargs=None,
+                 get_osm_kwargs=None):
+        # TODO better would be to store all parameters and not use kwargs
+        # store generation parameters with trip so that reproducible
+
+        self.railway_db = None
+        self.engine = db_connection
+        self.dem = dem
+
+        if get_osm_kwargs is None:
+            get_osm_kwargs = {}
+        self.get_osm_kwargs = get_osm_kwargs
+
+        if ele_pipeline_kwargs is None:
+            ele_pipeline_kwargs = {}
+        self.ele_pipeline_kwargs = ele_pipeline_kwargs
+
+        self.first_sample_distance = first_sample_distance
+        self.brunnel_filter_length = brunnel_filter_length
+        self.interpolated = interpolated
+
+    def generate_from_railway_db(self, trip_id) -> Trip:
+
+        if self.railway_db is None:
+            self.railway_db = RailwayDatabase(self.engine)
+
+        # get shape from database
+        trip_geom = self.railway_db.get_trip_shape(trip_id, self.dem.crs)["geom"]
+
+        # get timetable data from database
+        timetable = self.railway_db.get_trip_timetable(trip_id)
+
+        # convert the timetable arrival and start time to datetime instead of timedelta
+        date = "2021-01-01"
+        timetable["arrival_time"] = np.datetime64(date) + timetable.arrival_time
+        timetable["departure_time"] = np.datetime64(date) + timetable.departure_time
+
+        return self.generate_from_osm_db(trip_id, trip_geom, timetable)
+
+    def generate_from_simulation_results(self, results_file):
+        # problem: how to get trip_geom
+        raise NotImplementedError
+
+    def generate_from_osm_db(self, trip_id: int, trip_geom: GeoSeries, timetable: DataFrame):
+        osm_data = sql_get_osm_from_line(trip_geom, self.engine, **self.get_osm_kwargs)
+
+        return self.generate(trip_id, trip_geom, osm_data, timetable)
+
+    def generate(self, trip_id, trip_geom, osm_data, timetable):
+
+        electrified = get_osm_prop(osm_data, "electrified")
+        maxspeed = get_osm_prop(osm_data, "maxspeed")
+        brunnels = get_osm_prop(osm_data, "brunnel", brunnel_filter_length=self.brunnel_filter_length)
+
+        elevation_profile = self.dem.elevation_profile(trip_geom, distance=self.first_sample_distance,
+                                                       interpolated=self.interpolated)
+
+        elevation_profile = elevation_pipeline(elevation_profile, brunnels, **self.ele_pipeline_kwargs)
+
+        return Trip(trip_id, electrified, maxspeed, brunnels, timetable, elevation_profile, trip_geom)
 
 
 def clean_name(name: str) -> str:
+    # TODO to simple because "bad schussenried" becomes just "bad"
     name = name.split()
     name = name[0].split('(')
 

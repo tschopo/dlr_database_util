@@ -95,8 +95,8 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
 
     with engine.connect() as connection:
         osm_data = gpd.read_postgis(text(sql), geom_col='geom', con=connection,
-                                params={"linestring": linestring.wkt, "srid": table_srid,
-                                        "intersect_buffer": get_osm_buffer})
+                                    params={"linestring": linestring.wkt, "srid": table_srid,
+                                            "intersect_buffer": get_osm_buffer})
 
     osm_data[["way_id",
               "maxspeed",

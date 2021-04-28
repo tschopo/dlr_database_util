@@ -88,7 +88,7 @@ class RailwayDatabase:
             # for '1957658_Wernigerode - Ilfeld'
             # filter stations that end with "001 P1", "002 P2"
             # sometimes in the gtfs the geometries are added as stations
-            timetable = timetable[~timetable.stop_name.str.contains('\d\d\d P\d')]
+            timetable = timetable[~timetable.stop_name.str.contains(r'\d\d\d P\d')]
 
         s15 = pd.Timedelta(min_stop_duration * 0.5, unit="s")
 

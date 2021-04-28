@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='util',
-      version='0.2',
+      version='0.3',
       description='Util functions for the DLR database',
       url='#',
       author='Johannes Polster',

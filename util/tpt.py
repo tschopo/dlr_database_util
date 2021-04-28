@@ -20,8 +20,8 @@ def elevation_pipeline(elevation_profile: ElevationProfile, brunnels: DataFrame,
                        end_sample_distance: float = 100., resample: bool = True, resample_distance: float = 300.,
                        construct_brunnels: bool = True, max_brunnel_length: float = 300.,
                        construct_brunnel_thresh: float = 5., diff_kernel_dist: int = 10,
-                       smooth_1: bool = True, smooth_window_size_1: int = 25, poly_order_1: int = 3,
-                       smooth_2: bool = True, smooth_window_size_2: int = 7, poly_order_2: int = 1,
+                       smooth_1: bool = True, smooth_window_size_1: int = 29, poly_order_1: int = 3,
+                       smooth_2: bool = True, smooth_window_size_2: int = 9, poly_order_2: int = 1,
                        mode: str = "nearest", minimum: bool = True,
                        minimum_loops: int = 1, variance: bool = True, adjust_window_size: int = 12,
                        std_thresh: float = 2., sub_factor: float = 8., clip: float = 30, min_ele: float = -3,
@@ -62,7 +62,7 @@ def elevation_pipeline(elevation_profile: ElevationProfile, brunnels: DataFrame,
                                                                std_thresh=std_thresh, sub_factor=sub_factor,
                                                                clip=clip)
     if resample:
-        # then resample the elevation to the end sample distance
+        # then resample the elevation to resample_distance
         elevation_profile = elevation_profile.resample(resample_distance)
 
     if smooth_1:
@@ -557,12 +557,12 @@ def read_tpt_output_sheet(file, version=2):
 
     if version == 1:
         tpt_df = pd.read_csv(file, header=None,
-                         names=['time', 'acceleration', 'velocity', 'distance', 'force', 'power'])
+                             names=['time', 'acceleration', 'velocity', 'distance', 'force', 'power'])
         tpt_df = tpt_df[['time', 'distance', 'acceleration', 'velocity', 'force', 'power']]
     else:
         tpt_df = pd.read_csv(file, header=0,
-                    names=['time', 'acceleration', 'velocity', 'distance', 'force', 'power', 'maxspeed_sim', 'gradient',
-                           'electrification'])
+                             names=['time', 'acceleration', 'velocity', 'distance', 'force', 'power', 'maxspeed_sim',
+                                    'gradient', 'electrification'])
         tpt_df = tpt_df[['time', 'distance', 'acceleration', 'velocity', 'force', 'power', 'maxspeed_sim', 'gradient',
                          'electrification']]
 
