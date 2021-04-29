@@ -3,6 +3,7 @@ Functions that interface with the OSM rail database as defined by the import scr
 """
 import os
 import re
+import subprocess
 import urllib.request
 from shutil import which
 from typing import Optional, Union, Any
@@ -725,7 +726,7 @@ def spatial_median(osm_data, prop="maxspeed"):
     return median
 
 
-def osm_railways_to_psql(geofabrik_pbf: str, database="liniendatenbank", user="postgres", password=None):
+def osm_railways_to_psql(geofabrik_pbf_folder: str, geofabrik_pbf: str, database="liniendatenbank", user="postgres", password=None, osmium_filter = True):
     """
     Warning not tested
 
@@ -737,17 +738,10 @@ def osm_railways_to_psql(geofabrik_pbf: str, database="liniendatenbank", user="p
 
     """
 
-    # TODO test this
-
-    # download geofabrik data if geo_fabrik_pbf is a url
-    if geofabrik_pbf.startswith('http'):
-        urllib.request.urlretrieve(geofabrik_pbf)
-        geofabrik_pbf = geofabrik_pbf.split('/')[-1]
-
     # filter geofabrik germany osm data to only include railway data, to speedup import
     # test if osmium is installed
-    if which('osmium') is not None:
-        os.system('osmium tags-filter -o filtered.osm.pbf '
+    if which('osmium') is not None and osmium_filter:
+        os.system('osmium tags-filter -o ' + geofabrik_pbf_folder + '/filtered.osm.pbf '
                   + geofabrik_pbf +
                   ' nwr/railway nwr/disused:railway '
                   'nwr/abandoned:railway nwr/razed:railway nwr/construction:railway nwr/proposed:railway '
@@ -756,14 +750,19 @@ def osm_railways_to_psql(geofabrik_pbf: str, database="liniendatenbank", user="p
         geofabrik_pbf = 'filtered.osm.pbf'
 
     # osm2pgsql -d liniendatenbank -U postgres -W -O flex -S railways.lua data/germany-railway.osm.pbf
-    os.system('osm2pgsql -d '
-              + database +
-              '-U '
-              + user +
-              '-W -O flex -S railways.lua '
-              + geofabrik_pbf +
-              '< '
-              + password)
+    lua_path = os.path.dirname(os.path.abspath(__file__)) + '/railways.lua'
+    geofabrik_pbf_path = geofabrik_pbf_folder + '/' + geofabrik_pbf
+    proc = subprocess.Popen(['osm2pgsql', '-d', database, '-U', user, '-W', '-O', 'flex', '-S', lua_path,
+                             geofabrik_pbf_path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    proc.stdin.write(password+'\n')
+    proc.stdin.flush()
+
+    o, e = proc.communicate()
+
+    print('Output: ' + o)
+    print('Error: ' + e)
+    print('code: ' + str(proc.returncode))
+
     return
 
 

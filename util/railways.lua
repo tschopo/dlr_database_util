@@ -1,3 +1,5 @@
+-- https://github.com/openstreetmap/osm2pgsql/tree/master/flex-config
+
 -- Use JSON encoder
 local json = require('dkjson')
 
@@ -28,9 +30,10 @@ local osm_railways = osm2pgsql.define_way_table('osm_railways', {
     { column = 'tags', type = 'jsonb' },
     { column = 'geom', type = 'linestring' , projection = srid}
 })
-local osm_rail_nodes = osm2pgsql.define_node_table('osm_rail_nodes', {
-	{ column = 'type',      type = 'text' , not_null = true } -- station, halt, tram_stop, halt_position
-	{ column = 'name',      type = 'text' } -- bahnhofs name
+
+local osm_stations = osm2pgsql.define_node_table('osm_stations', {
+	{ column = 'type',      type = 'text' , not_null = true }, -- station, halt, tram_stop, halt_position
+	{ column = 'name',      type = 'text' }, -- bahnhofs name
 	{ column = 'status',     type = 'text', not_null = true }, -- active, proposed, construction, disused, razed
 	{ column = 'ref',  type = 'text' }, -- Ril-100-Kürzel (railway:ref)
 	{ column = 'category',  type = 'text' }, -- railway:station_category
@@ -38,7 +41,7 @@ local osm_rail_nodes = osm2pgsql.define_node_table('osm_rail_nodes', {
 	{ column = 'operator',  type = 'text' },
 	{ column = 'network',  type = 'text' },
     { column = 'tags', type = 'jsonb' },
-    { column = 'geom', type = 'point' , not_null = true }
+    { column = 'geom', type = 'point' , projection = srid }
 })
 
 --[[ TODO add later
@@ -172,7 +175,7 @@ end
 function osm2pgsql.process_node(object)
 
 	-- only process railways
-	if not object.tags.railway and not object.tags.public_transport then
+	if not object.tags.railway then
         return
     end
 
@@ -180,7 +183,40 @@ function osm2pgsql.process_node(object)
         return
     end
 
-   
+     -- get status and type
+    local type = object.tags.railway -- halt,station,tram_stop
+    local status = 'active'
+
+    if type == 'proposed' or type == 'planned' then
+    	status = 'proposed'
+
+    	-- now get type
+		type = get_type({'proposed', 'planned'}, object)
+    	
+    elseif type == 'construction' then
+    	status = 'construction'
+
+    	-- now get type
+		type = get_type({'construction'}, object)
+
+    elseif type == 'disused' then
+    	status = 'disused'
+
+    	-- now get type
+		type = get_type({'disused'}, object)
+
+    elseif type == 'abandoned' or type == 'razed' or type == 'demolished' or type == 'removed' then
+    	status = 'razed'
+
+    	-- now get type
+		type = get_type({'abandoned', 'razed', 'demolished', 'removed'}, object)
+	elseif type == 'station'  then
+    elseif type == 'halt' then
+    elseif type == 'tram_stop' then
+    elseif type == 'stop' then
+    else
+    	return
+    end
 
     -- https://wiki.openstreetmap.org/wiki/DE:OpenRailwayMap/Tagging	
 
@@ -225,7 +261,7 @@ function osm2pgsql.process_node(object)
 
     -- # railway=spur_junction
 
-    -- # tankstellen TODO kann auch fläch sein. postprocessing: alles in eine tabelle, fläche in punkt umwandeln
+    -- # tankstellen TODO kann auch fläche sein. postprocessing: alles in eine tabelle, fläche in punkt umwandeln
     -- railway=fuel
     -- area=yes
     -- building=yes
@@ -233,11 +269,18 @@ function osm2pgsql.process_node(object)
     -- # oberleitungsmasten
     -- power=catenary_mast 
 
-
-
-    osm_rail_nodes:add_row({
+    osm_stations:add_row({
+    	type = type,
+    	name = object.tags.name,
+    	status = status,
+    	ref = object.tags['railway:ref'],
+    	category = object.tags['railway:station_category'],
+    	elevation = object.tags.ele,
+    	operator = object.tags.operator,
+    	network = object.tags.network,
         tags = json.encode(object.tags), -- store tags in jsonb format
     })
+
 end
 
 -- lua cannot search lists, convert to table with key as value
