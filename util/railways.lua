@@ -28,12 +28,20 @@ local osm_railways = osm2pgsql.define_way_table('osm_railways', {
     { column = 'tags', type = 'jsonb' },
     { column = 'geom', type = 'linestring' , projection = srid}
 })
---[[ TODO add later
 local osm_rail_nodes = osm2pgsql.define_node_table('osm_rail_nodes', {
+	{ column = 'type',      type = 'text' , not_null = true } -- station, halt, tram_stop, halt_position
+	{ column = 'name',      type = 'text' } -- bahnhofs name
+	{ column = 'status',     type = 'text', not_null = true }, -- active, proposed, construction, disused, razed
+	{ column = 'ref',  type = 'text' }, -- Ril-100-Kürzel (railway:ref)
+	{ column = 'category',  type = 'text' }, -- railway:station_category
+	{ column = 'elevation',  type = 'int' }, -- höhe über meeresspeiegel wenn vorhangen (tag: ele)
+	{ column = 'operator',  type = 'text' },
+	{ column = 'network',  type = 'text' },
     { column = 'tags', type = 'jsonb' },
-    { column = 'geom', type = 'point' }
+    { column = 'geom', type = 'point' , not_null = true }
 })
 
+--[[ TODO add later
 local osm_rail_relations = osm2pgsql.define_relation_table('osm_rail_relations', {
     { column = 'tags', type = 'jsonb' },
     { column = 'geom', type = 'multilinestring'}
@@ -163,14 +171,17 @@ end
 
 function osm2pgsql.process_node(object)
 
-	-- TODO add later
-	if true then
-		return
-	end
+	-- only process railways
+	if not object.tags.railway and not object.tags.public_transport then
+        return
+    end
 
     if clean_tags(object.tags) then
         return
     end
+
+   
+
     -- https://wiki.openstreetmap.org/wiki/DE:OpenRailwayMap/Tagging	
 
     -- railway=station personenbahnhof
@@ -221,6 +232,7 @@ function osm2pgsql.process_node(object)
 
     -- # oberleitungsmasten
     -- power=catenary_mast 
+
 
 
     osm_rail_nodes:add_row({

@@ -486,11 +486,12 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
         # osm_prop_data = osm_prop_data[filter_bool]
     elif prop == "maxspeed":
         if 'maxspeed_forward' in osm_prop_data.columns:
-            # if maxspeed not specified take maxspeed forward
-            # if maxspeed and maxspeed forward not specified take maxspeed backward
-            osm_prop_data[prop] = np.where(np.isnan(osm_prop_data[prop]), osm_prop_data["maxspeed_forward"],
-                                           osm_prop_data[prop])
 
+            # take max of maxspeed forward and maxspeed
+            # if maxspeed not specified take maxspeed forward
+            osm_prop_data[prop] = np.fmax(osm_prop_data["maxspeed_forward"].values, osm_prop_data["maxspeed"].values)
+
+            # if maxspeed and maxspeed forward not specified take maxspeed backward
             if 'maxspeed_backward' in osm_prop_data.columns:
                 osm_prop_data[prop] = np.where(np.isnan(osm_prop_data[prop]),
                                                osm_prop_data["maxspeed_backward"],

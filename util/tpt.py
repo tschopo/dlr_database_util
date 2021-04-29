@@ -20,11 +20,11 @@ def elevation_pipeline(elevation_profile: ElevationProfile, brunnels: DataFrame,
                        end_sample_distance: float = 100., resample: bool = True, resample_distance: float = 300.,
                        construct_brunnels: bool = True, max_brunnel_length: float = 300.,
                        construct_brunnel_thresh: float = 5., diff_kernel_dist: int = 10,
-                       smooth_1: bool = True, smooth_window_size_1: int = 29, poly_order_1: int = 3,
-                       smooth_2: bool = True, smooth_window_size_2: int = 9, poly_order_2: int = 1,
+                       smooth_1: bool = True, smooth_window_size_1: int = 31, poly_order_1: int = 3,
+                       smooth_2: bool = True, smooth_window_size_2: int = 11, poly_order_2: int = 1,
                        mode: str = "nearest", minimum: bool = True,
                        minimum_loops: int = 1, variance: bool = True, adjust_window_size: int = 12,
-                       std_thresh: float = 2., sub_factor: float = 8., clip: float = 30, min_ele: float = -3,
+                       std_thresh: float = 2., sub_factor: float = 5., clip: float = 20, min_ele: float = -3,
                        max_ele: float = 2962.) -> ElevationProfile:
 
     # filter unrealistic values

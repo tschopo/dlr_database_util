@@ -279,6 +279,8 @@ class TripGenerator:
         self.brunnel_filter_length = brunnel_filter_length
         self.interpolated = interpolated
 
+        self.current_osm_data = None
+
     def generate_from_railway_db(self, trip_id) -> Trip:
 
         if self.railway_db is None:
@@ -303,6 +305,8 @@ class TripGenerator:
 
     def generate_from_osm_db(self, trip_id: int, trip_geom: GeoSeries, timetable: DataFrame):
         osm_data = sql_get_osm_from_line(trip_geom, self.engine, **self.get_osm_kwargs)
+
+        self.current_osm_data = osm_data
 
         return self.generate(trip_id, trip_geom, osm_data, timetable)
 
