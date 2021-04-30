@@ -172,6 +172,18 @@ function get_type(status, object)
 	return 'rail'
 end
 
+function get_station_type(status, object)
+    -- status must be list of statuses
+
+    for i,s in ipairs(status) do
+        t = object.tags[s..':railway']
+        if t and t ~= '' then return t end
+    end
+
+    return 'station'
+end
+
+
 function osm2pgsql.process_node(object)
 
 	-- only process railways
@@ -191,31 +203,35 @@ function osm2pgsql.process_node(object)
     	status = 'proposed'
 
     	-- now get type
-		type = get_type({'proposed', 'planned'}, object)
+		type = get_station_type({'proposed', 'planned'}, object)
     	
     elseif type == 'construction' then
     	status = 'construction'
 
     	-- now get type
-		type = get_type({'construction'}, object)
+		type = get_station_type({'construction'}, object)
 
     elseif type == 'disused' then
     	status = 'disused'
 
     	-- now get type
-		type = get_type({'disused'}, object)
+		type = get_station_type({'disused'}, object)
 
     elseif type == 'abandoned' or type == 'razed' or type == 'demolished' or type == 'removed' then
     	status = 'razed'
 
     	-- now get type
-		type = get_type({'abandoned', 'razed', 'demolished', 'removed'}, object)
+		type = get_station_type({'abandoned', 'razed', 'demolished', 'removed'}, object)
 	elseif type == 'station'  then
     elseif type == 'halt' then
     elseif type == 'tram_stop' then
     elseif type == 'stop' then
     else
     	return
+    end
+
+    if type ~= 'station' and type ~= 'halt' and type ~= 'tram_stop' and type ~= 'stop' then
+        return
     end
 
     -- https://wiki.openstreetmap.org/wiki/DE:OpenRailwayMap/Tagging	
@@ -269,11 +285,25 @@ function osm2pgsql.process_node(object)
     -- # oberleitungsmasten
     -- power=catenary_mast 
 
+    ref_tag = 'railway:ref'
+
+    -- get ref with operator if null such as railway:ref:DBAG
+    ref = object.tags[ref_tag]
+
+    if ref == nil then
+        for key, value in pairs(object.tags) do
+            if key:sub(1, #ref_tag) == ref_tag then
+                ref = object.tags[key]
+            end
+        end
+    end
+
+
     osm_stations:add_row({
     	type = type,
     	name = object.tags.name,
     	status = status,
-    	ref = object.tags['railway:ref'],
+    	ref = ref,
     	category = object.tags['railway:station_category'],
     	elevation = object.tags.ele,
     	operator = object.tags.operator,

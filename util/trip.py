@@ -10,7 +10,7 @@ from sqlalchemy.engine import Engine
 
 from util import sql_get_osm_from_line, get_osm_prop, RailwayDatabase, elevation_pipeline, write_tpt_input_sheet, \
     write_sensor_input_sheet, read_tpt_output_sheet, add_inputs_to_simulation_results, resample_simulation_results, \
-    plot_trip_props
+    plot_trip_props, spatial_median
 
 
 class Trip:
@@ -50,6 +50,8 @@ class Trip:
         self.brunnels: DataFrame = brunnels
         self.elevation_profile: ElevationProfile = elevation_profile
 
+        self.warnings: List[str] = []
+
         # TODO add time_delta column that starts at 0
         # timetable['time_delta'] = timetable["arrival_time"] - timetable.iloc[0]["arrival_time"]
 
@@ -70,15 +72,45 @@ class Trip:
         self.electrified.at[self.electrified.shape[0] - 1, 'end_dist'] = np.ceil(self.length)
 
         # also timetable dists don't align perfectly
+        # set dist to 0 for first station
+        if abs(self.timetable.at[self.timetable.shape[0] - 1, 'dist'] - self.length) > 250:
+            self.warnings.append("WARNING: Timetable last station distance doesn't match trip length")
         self.timetable.at[self.timetable.shape[0] - 1, 'dist'] = self.length
 
-        self.warnings: List[str] = []
         # set dist to 0 for first station
         if self.timetable.iloc[0]["dist"] > 250:
             self.warnings.append("WARNING: First Station far away")
         self.timetable.iloc[0, self.timetable.columns.get_loc("dist")] = 0
 
         self.simulation_results: Optional[DataFrame] = None
+
+        # then calculate the inclination
+        incl = self.elevation_profile.inclination(degrees=False)
+
+        # set last incl to 0 in some cases
+        if abs(incl[-1]) > 15:
+            incl[-1] = 0
+            self.warnings.append("WARNING: Last inclination is above threshold. Setting to 0")
+
+        if np.max(np.abs(incl)) > 30:
+            self.warnings.append("WARNING: Inclination above 30 permille")
+
+        if self.elevation_profile.cumulative_ascent() <= 0:
+            self.warnings.append("WARNING: Cumulative Climb is 0")
+
+        if self.length < 2000:
+            self.warnings.append("WARNING: Trip Length below 2km")
+
+        if np.min(self.timetable.dist - self.timetable.dist.shift(1)) < 100:
+            self.warnings.append("WARNING: Stations closer 100m")
+
+        if self.timetable.shape[0] >= 50:
+            self.warnings.append("WARNING: More than 50 Stations")
+
+        # weighted maxspeed median must be over 49 kmh
+        if spatial_median(self.maxspeed.maxspeed.values,
+                          (self.maxspeed.end_dist - self.maxspeed.start_dist).values) < 50:
+            self.warnings.append("WARNING: Median Maxspeed below 50")
 
     def get_stations(self) -> List[str]:
         """
@@ -121,7 +153,7 @@ class Trip:
             power = None
         return power
 
-    def write_input_sheet(self, simulation="tpt", template_file=None, folder=None, last_incl_thresh=10.):
+    def write_input_sheet(self, simulation="tpt", template_file=None, folder=None, last_incl_thresh=15.):
 
         if simulation == "tpt" and template_file is None:
             raise Exception("TPT writer needs a template_file")

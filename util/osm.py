@@ -550,7 +550,7 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
             segments.append(current_segment)
 
         # go through segments. if a segment is long then set all maxspeeds to median of trip
-        median_maxspeed = spatial_median(osm_prop_data)
+        median_maxspeed = spatial_median_osm(osm_prop_data)
 
         # if the median is very low, set it to 100
         if median_maxspeed < maxspeed_min_if_null:
@@ -701,7 +701,7 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
     return props
 
 
-def spatial_median(osm_data, prop="maxspeed"):
+def spatial_median_osm(osm_data, prop="maxspeed"):
     """
     calculate the weighted median. repeat each value by length.
 
@@ -713,15 +713,33 @@ def spatial_median(osm_data, prop="maxspeed"):
 
     """
 
-    osm_data = osm_data.copy()
+    return spatial_median(osm_data[prop].values, osm_data.length.values)
 
-    osm_data["length"] = osm_data.length
-    vals = []
-    for index, row in osm_data.iterrows():
-        vals = vals + ([row[prop]] * int(row["length"]))
 
-    vals = np.array(vals)
-    median = np.nanmedian(vals)
+def spatial_median(vals, lengths):
+    """
+    calculate the weighted median. repeat each value by length.
+
+    Parameters
+    ----------
+    vals : List
+        The values
+    lengths : List
+        The lengths
+
+    Returns
+    -------
+
+    """
+
+    if len(vals) != len(lengths):
+        raise Exception("Input Arrays must be same length")
+    mult_vals = []
+    for i in range(len(vals)):
+        mult_vals = mult_vals + ([vals[i]] * int(lengths[i]))
+
+    mult_vals = np.array(mult_vals)
+    median = np.nanmedian(mult_vals)
 
     return median
 
