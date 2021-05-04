@@ -61,7 +61,7 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
         geopandas GeoDataFrame
     """
 
-    # convert the linestring to the same crs as GeoDataframe
+    # convert the linestring to the same crs as table, so that intersection buffer works
     if table_srid is None:
         table_srid = int(sql_get_srid(engine, schema=schema, table=table, geom_column=geom_column))
 
@@ -80,6 +80,7 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
     if crs is None:
         raise Exception("parameter linestring must be GeoSeries or crs parameter must be given")
 
+    # transform the linestring crs to the table crs
     project = pyproj.Transformer.from_crs(crs, crs_to, always_xy=True).transform
     linestring = transform(project, linestring)
 
@@ -144,6 +145,8 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
     osm_data = osm_data.to_crs(crs)
 
     assert trip_geom.crs.equals(osm_data.crs)
+    # print(osm_data.crs.to_epsg())
+    # print(trip_geom.crs.to_epsg())
 
     osm_data['start_point'] = osm_data.apply(lambda r: Point(r['geom'].coords[0]), axis=1)
     osm_data['end_point'] = osm_data.apply(lambda r: Point(r['geom'].coords[-1]), axis=1)
@@ -621,7 +624,10 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
         if trip_length is not None:
             props.iloc[-1, props.columns.get_loc('end_dist')] = trip_length
         if harmonize_end_dists:
+            # make sure all start at 0
             props.iloc[0, props.columns.get_loc('start_dist')] = 0
+
+            # make sure all segments are connected by setting the end dist do the start_dist of the next segment
             props.iloc[0:-1, props.columns.get_loc('end_dist')] = props.iloc[1:,
                                                                              props.columns.get_loc('start_dist')].values
 
@@ -693,6 +699,9 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
         else:
             props["start_dist"] = np.rint(props["start_dist"]).astype(int)
             props["end_dist"] = np.rint(props["end_dist"]).astype(int)
+
+            # the rounding can lead to segments of length 0. filter these segments
+            props = props[props["start_dist"] != props["end_dist"]]
 
         if prop == "maxspeed":
             props["maxspeed"] = np.rint(props["maxspeed"]).astype(int)

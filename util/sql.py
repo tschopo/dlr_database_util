@@ -7,11 +7,12 @@ from typing import Any, Tuple, Optional, Union
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import sqlalchemy
 from geopandas import GeoDataFrame
 from pandas import DataFrame
 from sqlalchemy import text
 
-from .osm import sql_get_osm_from_line
+from .osm import sql_get_osm_from_line, get_osm_prop
 
 
 # OO interface
@@ -159,3 +160,72 @@ class RailwayDatabase:
         osm_data = sql_get_osm_from_line(trip_geom, self.engine, **kwargs)
 
         return osm_data
+
+    def save_trip_osm_tables(self, trip_id: int, crs = 25832, replace=True, trip_id_is_candidate_trip_id=False, brunnel_filter_length=10., **get_osm_kwargs):
+        """
+
+        Parameters
+        ----------
+        trip_id
+        crs : int or pyproj CRS object
+            Must be a projected crs (unit meters). The osm_data and trip geom are converted to this crs. Is used only
+            internally, since this function does not save geo data, but the accuracy of the distance calculations depend
+            on this.
+        replace : bool
+            if True', then replaces the trips in the database on conflict. else an
+             error is raised if trip already exists and the values are not added. default True
+        trip_id_is_candidate_trip_id: bool
+            if False then the candidate trip_id is looked up first. If True it is assumed that trip_id is candidate
+            trip_id and no lookup is performed. candidate trips are trips with the same geometry
+        get_osm_kwargs
+
+        Returns
+        -------
+
+        """
+
+        # get the candidate trip id with same geom
+        if not trip_id_is_candidate_trip_id:
+            sql = """
+                    select same_geom_candidate 
+                    from ldb_trip_candidates 
+                    where trip_id = :trip_id
+                    """
+
+            with self.engine.connect() as con:
+                rs = con.execute(text(sql), {'trip_id': trip_id}).first()
+                trip_id = rs[0]
+
+        # get shape from database
+        shape: GeoDataFrame = self.get_trip_shape(trip_id, crs=crs)
+
+        trip_geom = shape["geom"]
+        osm_data = sql_get_osm_from_line(trip_geom, self.engine, **get_osm_kwargs)
+
+        trip_length = trip_geom.length.iloc[0]
+
+        electrified = get_osm_prop(osm_data, "electrified", trip_length=trip_length)
+        maxspeed = get_osm_prop(osm_data, "maxspeed", trip_length=trip_length)
+        brunnels = get_osm_prop(osm_data, "brunnel", brunnel_filter_length=brunnel_filter_length)
+
+        electrified['trip_id'] = trip_id
+        maxspeed['trip_id'] = trip_id
+        brunnels['trip_id'] = trip_id
+
+        # make sure the columns are in right order
+        electrified = electrified[['trip_id', 'electrified', 'start_dist', 'end_dist']]
+        maxspeed = maxspeed[['trip_id', 'maxspeed', 'start_dist', 'end_dist']]
+        brunnels = brunnels[['trip_id', 'start_dist', 'end_dist']]
+
+        with self.engine.begin() as con:
+            # if replace: make sure that trip does not exist by deleting all records
+            if replace:
+                con.execute(text("delete from ldb_electrified where trip_id = :trip_id"), {'trip_id': trip_id})
+                con.execute(text("delete from ldb_maxspeed where trip_id = :trip_id"), {'trip_id': trip_id})
+                con.execute(text("delete from ldb_brunnels where trip_id = :trip_id"), {'trip_id': trip_id})
+
+            electrified.to_sql('ldb_electrified', con, if_exists='append', index=False)
+            maxspeed.to_sql('ldb_maxspeed', con, if_exists='append', index=False)
+            brunnels.to_sql('ldb_brunnels', con, if_exists='append', index=False)
+
+        return

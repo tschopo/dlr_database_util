@@ -344,8 +344,10 @@ class TripGenerator:
 
     def generate(self, trip_id, trip_geom, osm_data, timetable):
 
-        electrified = get_osm_prop(osm_data, "electrified")
-        maxspeed = get_osm_prop(osm_data, "maxspeed")
+        trip_length = trip_geom.length.iloc[0]
+
+        electrified = get_osm_prop(osm_data, "electrified", trip_length=trip_length)
+        maxspeed = get_osm_prop(osm_data, "maxspeed", trip_length=trip_length)
         brunnels = get_osm_prop(osm_data, "brunnel", brunnel_filter_length=self.brunnel_filter_length)
 
         elevation_profile = self.dem.elevation_profile(trip_geom, distance=self.first_sample_distance,
