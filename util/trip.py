@@ -88,15 +88,19 @@ class Trip:
         incl = self.elevation_profile.inclination(degrees=False)
 
         # set last incl to 0 in some cases
-        if abs(incl[-1]) > 15:
-            incl[-1] = 0
-            self.warnings.append("WARNING: Last inclination is above threshold. Setting to 0")
 
-        if np.max(np.abs(incl)) > 30:
-            self.warnings.append("WARNING: Inclination above 30 permille")
+        if incl.shape[0] > 0:
+            if abs(incl[-1]) > 15:
+                incl[-1] = 0
+                self.warnings.append("WARNING: Last inclination is above threshold. Setting to 0")
 
-        if self.elevation_profile.cumulative_ascent() <= 0:
-            self.warnings.append("WARNING: Cumulative Climb is 0")
+            if np.max(np.abs(incl)) > 30:
+                self.warnings.append("WARNING: Inclination above 30 permille")
+
+            if self.elevation_profile.cumulative_ascent() <= 0:
+                self.warnings.append("WARNING: Cumulative Climb is 0")
+        else:
+            self.warnings.append("WARNING: No elevation Data")
 
         if self.length < 2000:
             self.warnings.append("WARNING: Trip Length below 2km")
@@ -260,6 +264,10 @@ class Trip:
         if np.all(elevation_smoothed.elevation == elevation_orig.elevation):
             elevation_orig = None
 
+        if elevation_smoothed.shape[0] == 0:
+            elevation_smoothed.at[0, 'elevation'] = 0
+            elevation_smoothed.at[0, 'distance'] = 0
+
         chart = plot_trip_props(self.maxspeed, self.electrified, elevation_orig,
                                 elevation_smoothed, self.title,
                                 self.length, velocity=self.get_velocity(),
@@ -321,6 +329,8 @@ class TripGenerator:
 
         if self.railway_db is None:
             self.railway_db = RailwayDatabase(self.engine)
+
+        trip_id = int(trip_id)
 
         # get shape from database
         trip_geom = self.railway_db.get_trip_shape(trip_id, self.dem.crs)["geom"]

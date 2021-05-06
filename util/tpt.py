@@ -37,12 +37,12 @@ def elevation_pipeline(elevation_profile: ElevationProfile, brunnels: DataFrame,
     elevation_profile.distances_orig = elevation_profile.distances_orig[keep_orig]
     elevation_profile.elevations_orig = elevation_profile.elevations_orig[keep_orig]
 
+    if elevation_profile.distances.shape[0] <= 1:
+        return elevation_profile
+
     # because of filter, brunnels can be in region where no elevation data
     # end_dist must be larger than last distance value
     brunnels = brunnels[brunnels.end_dist <= elevation_profile.distances[-1]]
-
-    if elevation_profile.distances.shape[0] <= 1:
-        return elevation_profile
 
     # first_resample so that equidistant sample points at first_sample_distance apart
     elevation_profile = elevation_profile.resample(first_sample_distance)
