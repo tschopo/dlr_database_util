@@ -1,6 +1,6 @@
 import util
 from sqlalchemy import create_engine
-from ElevationSampler import DEM, ElevationProfile
+from ElevationSampler import DEM
 
 if __name__ == '__main__':
     engine = create_engine('postgresql://dlr:dlr4thewin@localhost/liniendatenbank')

@@ -12,7 +12,7 @@ from geopandas import GeoDataFrame
 from pandas import DataFrame
 from sqlalchemy import text
 
-from . import elevation_pipeline
+from .tpt import elevation_pipeline
 from .osm import sql_get_osm_from_line, get_osm_prop
 
 
@@ -172,11 +172,11 @@ class RailwayDatabase:
             """
 
         with self.engine.connect() as connection:
-            brunnels = pd.read_sql_query(text(sql), con=connection, params={"trip_id": trip_id})
+            brunnels = pd.read_sql_query(text(sql), con=connection, params={"trip_id": int(trip_id)})
 
         return brunnels
 
-    def get_trip_elevation(self, trip_id: int):
+    def get_trip_elevation_profile(self, trip_id: int):
 
         sql = """
             select ldb_elevation.dist, ldb_elevation.elevation
@@ -186,7 +186,7 @@ class RailwayDatabase:
             """
 
         with self.engine.connect() as connection:
-            elevation = pd.read_sql_query(text(sql), con=connection, params={"trip_id": trip_id})
+            elevation = pd.read_sql_query(text(sql), con=connection, params={"trip_id": int(trip_id)})
 
         elevation_profile = ElevationProfile(elevation.dist, elevation.elevation)
 
@@ -202,7 +202,7 @@ class RailwayDatabase:
             """
 
         with self.engine.connect() as connection:
-            electrified = pd.read_sql_query(text(sql), con=connection, params={"trip_id": trip_id})
+            electrified = pd.read_sql_query(text(sql), con=connection, params={"trip_id": int(trip_id)})
 
         return electrified
 
@@ -215,7 +215,7 @@ class RailwayDatabase:
             """
 
         with self.engine.connect() as connection:
-            maxspeed = pd.read_sql_query(text(sql), con=connection, params={"trip_id": trip_id})
+            maxspeed = pd.read_sql_query(text(sql), con=connection, params={"trip_id": int(trip_id)})
 
         return maxspeed
 
@@ -259,7 +259,7 @@ class RailwayDatabase:
                     """
 
             with self.engine.connect() as con:
-                rs = con.execute(text(sql), {'trip_id': trip_id}).first()
+                rs = con.execute(text(sql), {'trip_id': int(trip_id)}).first()
                 trip_id = rs[0]
 
         # get shape from database
@@ -299,8 +299,21 @@ class RailwayDatabase:
 
         return 0
 
-    def save_trip_elevation_table(self, trip_id, dem, brunnels, first_sample_distance=10, interpolated=True,
+    def save_trip_elevation_table(self, trip_id, dem, brunnels, replace=True, trip_id_is_candidate_trip_id=False,
+                                  first_sample_distance=10, interpolated=True,
                                   **ele_pipeline_kwargs):
+
+        # get the candidate trip id with same geom
+        if not trip_id_is_candidate_trip_id:
+            sql = """
+                select same_geom_candidate 
+                from ldb_trip_candidates 
+                where trip_id = :trip_id
+                """
+
+            with self.engine.connect() as con:
+                rs = con.execute(text(sql), {'trip_id': trip_id}).first()
+                trip_id = rs[0]
 
         trip_geom = self.get_trip_shape(int(trip_id), dem.crs)["geom"]
 
@@ -316,6 +329,56 @@ class RailwayDatabase:
         elevation = elevation[['trip_id', 'dist', 'elevation']]
 
         with self.engine.connect() as con:
+            # if replace: make sure that trip does not exist by deleting all records
+            if replace:
+                con.execute(text("delete from ldb_elevation where trip_id = :trip_id"), {'trip_id': trip_id})
+
             elevation.to_sql('ldb_elevation', con, if_exists='append', index=False)
 
         return 0
+
+    def contains_generated_trip(self, trip_id):
+        """
+        Check if the data for the trip is stored in the database. Checks if data present in ldb_electrified,
+        ldb_elevation and ldb_maxspeed.
+
+        Parameters
+        ----------
+        trip_id
+
+        Returns
+        -------
+
+        """
+
+        with self.engine.connect() as con:
+            # get the candidate trip
+            sql = """
+               select same_geom_candidate 
+               from ldb_trip_candidates 
+               where trip_id = :trip_id
+               """
+
+            # if no trip candidate then also no data
+            rs = con.execute(text(sql), {'trip_id': trip_id}).first()
+            if rs is not None:
+                trip_id = rs[0]
+            else:
+                return False
+
+            sql = "select exists(select 1 from ldb_electrified where trip_id=:trip_id)"
+            in_electrified = con.execute(text(sql), {'trip_id': trip_id}).first()[0]
+
+            sql = "select exists(select 1 from ldb_maxspeed where trip_id=:trip_id)"
+            in_maxspeed = con.execute(text(sql), {'trip_id': trip_id}).first()[0]
+
+            sql = "select exists(select 1 from ldb_elevation where trip_id=:trip_id)"
+            in_elevation = con.execute(text(sql), {'trip_id': trip_id}).first()[0]
+
+            return in_electrified and in_maxspeed and in_elevation
+
+
+
+
+
+
