@@ -37,7 +37,7 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
                           filter_difference_length: float = 1., schema: str = "public",
                           table: str = "osm_railways", geom_column: str = "geom", ) -> GeoDataFrame:
     """
-    Get osm data for a LineString.
+    Get osm data for a LineString. Raises an Exception if no osm data is found.
 
     Parameters
     ----------
@@ -139,6 +139,9 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
                   }
 
     osm_data = osm_data.astype(new_dtypes)
+
+    if osm_data.shape[0] == 0:
+        raise Exception("No OSM data found for the given shape!")
 
     # convert the reference system so that they match
     trip_geom = linestring_pd
