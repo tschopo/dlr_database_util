@@ -4,7 +4,6 @@ Functions that interface with the OSM rail database as defined by the import scr
 import os
 import re
 import subprocess
-import urllib.request
 from shutil import which
 from typing import Optional, Union, Any
 

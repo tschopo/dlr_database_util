@@ -152,10 +152,10 @@ class RailwayDatabase:
 
         return stops
 
-    def get_trip_osm(self, trip_id: int, **kwargs):
+    def get_trip_osm(self, trip_id: int, crs=25832, **kwargs):
 
         # get shape from database
-        shape: GeoDataFrame = self.get_trip_shape(trip_id)
+        shape: GeoDataFrame = self.get_trip_shape(trip_id, crs=crs)
 
         trip_geom = shape["geom"]
         osm_data = sql_get_osm_from_line(trip_geom, self.engine, **kwargs)
@@ -376,9 +376,3 @@ class RailwayDatabase:
             in_elevation = con.execute(text(sql), {'trip_id': trip_id}).first()[0]
 
             return in_electrified and in_maxspeed and in_elevation
-
-
-
-
-
-

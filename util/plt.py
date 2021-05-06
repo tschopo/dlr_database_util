@@ -453,6 +453,9 @@ def plot_power(power: DataFrame, pos_color='#9ecae1', neg_color='#d62728', hide_
     else:
         x = alt.X('distance:Q', scale=alt.Scale(nice=False), axis=alt.Axis(format="~s", title='distance (m)'))
 
+    # TODO for nice display: calculate the intersection with x=0 and add points at the intersection so that no overlapp
+    #  between negative chart and positive chart
+
     chart_power = alt.Chart(power).transform_calculate(
         negative='datum.power > 0'
     ).mark_area(opacity=0.75).encode(
