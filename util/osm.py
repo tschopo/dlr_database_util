@@ -434,7 +434,7 @@ def finalize_osm(osm_data: GeoDataFrame, trip_geom, filter_inactive: bool = Fals
 
 def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float = 10., round_int: bool = True,
                  train_length: Optional[float] = 150., maxspeed_if_all_null: float = 120.,
-                 maxspeed_null_segment_length=1000., maxspeed_min_if_null: float = 60.,
+                 maxspeed_null_segment_length=1000., maxspeed_null_max_frac: float = 0.6, maxspeed_min_if_null: float = 60.,
                  trip_length: Optional[float] = None, harmonize_end_dists: bool = True,
                  set_unknown_electrified_to_no: bool = True, tpt: bool = True):
     """
@@ -461,9 +461,13 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
         train_length : float or None
             The minimum length of maxspeed spikes. Should be larger than train length.
         maxspeed_if_all_null : float
-            The maxspead that is set if there are 0 maxspeeds present
+            The maxspeed that is set if there are 0 maxspeeds present or for semgent lengths that are longer than
+            maxspeed_null_max_frac * trip_length
         maxspeed_null_segment_length : float
             For Segments of nan values longer than this, the maxspeed is set to the median of the trip maxspeed.
+        maxspeed_null_max_frac: float
+            between 0 and 1. if a null segment is larger than this fraction of the trip length, then the null segment ist set to
+            maxspeed_if_all_null
         maxspeed_min_if_null : float
             For nan segments: if median of trip is below this value, set the nan segment to maxspeed_if_all_null
         trip_length : float or None
@@ -557,12 +561,14 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
         # go through segments. if a segment is long then set all maxspeeds to median of trip
         median_maxspeed = spatial_median_osm(osm_prop_data)
 
-        # if the median is very low, set it to 100
+        # if the median is very low, set it to maxspeed_if_all_null
         if median_maxspeed < maxspeed_min_if_null:
             median_maxspeed = maxspeed_if_all_null
 
         for segment in segments:
-            if segment.length > maxspeed_null_segment_length:
+            if trip_length is not None and segment.length > (maxspeed_null_max_frac * trip_length):
+                osm_prop_data.loc[segment.members, prop] = maxspeed_if_all_null
+            elif segment.length > maxspeed_null_segment_length:
                 osm_prop_data.loc[segment.members, prop] = median_maxspeed
 
         # filter nans
@@ -624,6 +630,16 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
     # set end dist to trip length so that dists are aligned with trip length
     if prop == "electrified" or prop == "maxspeed":
         if trip_length is not None:
+            # calculate missing length
+            # if missing length is large, then add segment with default maxspeed.
+            # this prevents maxspeed being to low if trip goes outside of germany and last maxspeed is low.
+            if prop == "maxspeed" and \
+                    (trip_length - props.iloc[-1, props.columns.get_loc('end_dist')]) > maxspeed_null_segment_length:
+                new_row = {'maxspeed': maxspeed_if_all_null,
+                           'start_dist': props.iloc[-1, props.columns.get_loc('end_dist')],
+                           'end_dist': trip_length}
+                props = props.append(new_row, ignore_index=True)
+
             props.iloc[-1, props.columns.get_loc('end_dist')] = trip_length
         if harmonize_end_dists:
             # make sure all start at 0

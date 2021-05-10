@@ -333,7 +333,12 @@ class TripGenerator:
         trip_id = int(trip_id)
 
         # get shape from database
-        trip_geom = self.railway_db.get_trip_shape(trip_id, self.dem.crs)["geom"]
+        if self.dem is None:
+            crs = 28532
+        else:
+            crs = self.dem.crs
+
+        trip_geom = self.railway_db.get_trip_shape(trip_id, crs)["geom"]
 
         # get timetable data from database
         timetable = self.railway_db.get_trip_timetable(trip_id)
@@ -375,6 +380,9 @@ class TripGenerator:
         electrified = get_osm_prop(osm_data, "electrified", trip_length=trip_length)
         maxspeed = get_osm_prop(osm_data, "maxspeed", trip_length=trip_length)
         brunnels = get_osm_prop(osm_data, "brunnel", brunnel_filter_length=self.brunnel_filter_length)
+
+        if self.dem is None:
+            raise Exception('TripGenerator needs a DEM for calculating the elevations!')
 
         elevation_profile = self.dem.elevation_profile(trip_geom, distance=self.first_sample_distance,
                                                        interpolated=self.interpolated)
