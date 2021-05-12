@@ -448,6 +448,8 @@ def write_tpt_input_sheet(template_file: str, trip_title: str, timetable: DataFr
 
     """
 
+    timetable = timetable.copy()
+
     filename = trip_title_to_filename(trip_title)
     basename = filename
     if folder is not None:

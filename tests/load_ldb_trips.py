@@ -28,5 +28,4 @@ if __name__ == '__main__':
 
     pool = mp.Pool(8)
 
-    res = pool.map(exception_wrapper,candidate_trip_ids)
-
+    res = pool.map(exception_wrapper, candidate_trip_ids)

@@ -1,7 +1,7 @@
 """
 Functions that interface with the dlr "liniendatenbank" database
 """
-
+import re
 from typing import Any, Tuple, Optional, Union
 
 import geopandas as gpd
@@ -376,3 +376,41 @@ class RailwayDatabase:
             in_elevation = con.execute(text(sql), {'trip_id': trip_id}).first()[0]
 
             return in_electrified and in_maxspeed and in_elevation
+
+    def fix_osm(self, fix_geojson: str, prop: str, crs=25832):
+        """
+        Fix osm data from geojson. The geojson contains the correct data. All osm features that intersect the geojson
+        are set to the prop in the geojson.
+
+        Parameters
+        ----------
+        fix_geojson: str
+            path to the geojson file
+        prop: str
+            the key in the geojson / osm database that is fixed
+
+        Returns
+        -------
+
+        """
+        fix_osm = gpd.read_file(fix_geojson)
+        fix_osm = fix_osm.to_crs(crs)
+
+        # escape prop for sql
+        prop = re.sub('[^A-Za-z0-9_]+', '', prop)
+
+        # get the candidate trip
+        sql = """ UPDATE osm_railways
+        set {prop} = :prop_val
+        where way_id = :way_id
+        """.format(prop=prop)
+
+        for fix_index, fix_row in fix_osm.iterrows():
+            geom = fix_row.geometry
+            osm_data = sql_get_osm_from_line(geom, self.engine, crs=crs)
+
+            with self.engine.connect() as con:
+                for osm_index, osm_row in osm_data.iterrows():
+                    print("..." + str(osm_index))
+                    print("set ", str(osm_row.way_id), " to ", fix_row[prop])
+                    con.execute(text(sql), {'way_id': osm_row.way_id, 'prop_val': fix_row[prop]})

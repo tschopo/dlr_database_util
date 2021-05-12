@@ -434,7 +434,7 @@ def finalize_osm(osm_data: GeoDataFrame, trip_geom, filter_inactive: bool = Fals
 
 def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float = 10., round_int: bool = True,
                  train_length: Optional[float] = 150., maxspeed_if_all_null: float = 120.,
-                 maxspeed_null_segment_length=1000., maxspeed_null_max_frac: float = 0.6, maxspeed_min_if_null: float = 60.,
+                 maxspeed_null_segment_length=1000., maxspeed_null_max_frac: float = 0.5, maxspeed_min_if_null: float = 60.,
                  trip_length: Optional[float] = None, harmonize_end_dists: bool = True,
                  set_unknown_electrified_to_no: bool = True, tpt: bool = True):
     """
@@ -461,13 +461,13 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
         train_length : float or None
             The minimum length of maxspeed spikes. Should be larger than train length.
         maxspeed_if_all_null : float
-            The maxspeed that is set if there are 0 maxspeeds present or for semgent lengths that are longer than
-            maxspeed_null_max_frac * trip_length
+            The maxspeed that is set if there are 0 maxspeeds present or for if all nullsegments lengths sum up
+             to more than maxspeed_null_max_frac * trip_length
         maxspeed_null_segment_length : float
             For Segments of nan values longer than this, the maxspeed is set to the median of the trip maxspeed.
         maxspeed_null_max_frac: float
-            between 0 and 1. if a null segment is larger than this fraction of the trip length, then the null segment ist set to
-            maxspeed_if_all_null
+            between 0 and 1. if the null segment lengths sum up to a length larger than maxspeed_null_max_frac *
+            trip_length, then the null segment ist set to maxspeed_if_all_null
         maxspeed_min_if_null : float
             For nan segments: if median of trip is below this value, set the nan segment to maxspeed_if_all_null
         trip_length : float or None
@@ -523,6 +523,7 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
             length = None
             members = []
 
+        total_null_length = 0
         segments = []
 
         current_segment = None
@@ -547,6 +548,7 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
                 if segment_open:
                     current_segment.end = segment_end_candidate
                     current_segment.length = current_segment.end - current_segment.start
+                    total_null_length += current_segment.length
                     segments.append(current_segment)
 
                 # close the segment
@@ -556,6 +558,7 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
         if segment_open:
             current_segment.end = segment_end_candidate
             current_segment.length = current_segment.end - current_segment.start
+            total_null_length += current_segment.length
             segments.append(current_segment)
 
         # go through segments. if a segment is long then set all maxspeeds to median of trip
@@ -565,8 +568,14 @@ def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float
         if median_maxspeed < maxspeed_min_if_null:
             median_maxspeed = maxspeed_if_all_null
 
+        # get the total length of nans
+        # if total length is above maxspeed_if_null_frac*trip_length then set all nans to maxspeed if all null
+        set_null_to_default_maxspeed = False
+        if trip_length is not None and total_null_length > maxspeed_null_max_frac * trip_length:
+            set_null_to_default_maxspeed = True
+
         for segment in segments:
-            if trip_length is not None and segment.length > (maxspeed_null_max_frac * trip_length):
+            if set_null_to_default_maxspeed:
                 osm_prop_data.loc[segment.members, prop] = maxspeed_if_all_null
             elif segment.length > maxspeed_null_segment_length:
                 osm_prop_data.loc[segment.members, prop] = median_maxspeed

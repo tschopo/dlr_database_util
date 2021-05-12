@@ -88,11 +88,16 @@ class Trip:
         incl = self.elevation_profile.inclination(degrees=False)
 
         # set last incl to 0 in some cases
-
         if incl.shape[0] > 0:
             if abs(incl[-1]) > 15:
-                incl[-1] = 0
+                self.elevation_profile.elevations[-1] = self.elevation_profile.elevations[-2]
                 self.warnings.append("WARNING: Last inclination is above threshold. Setting to 0")
+
+            # if trip is longer than elevation distances set last incl to 0 for rest of trip
+            if self.elevation_profile.distances[-1] < self.length - 100:
+                self.elevation_profile.elevations = np.append(self.elevation_profile.elevations,
+                                                              self.elevation_profile.elevations[-1])
+                self.elevation_profile.distances = np.append(self.elevation_profile.distances, self.length)
 
             if np.max(np.abs(incl)) > 30:
                 self.warnings.append("WARNING: Inclination above 30 permille")
@@ -164,7 +169,7 @@ class Trip:
         incl = self.elevation_profile.inclination(degrees=False)
 
         # set last incl to 0 in some cases
-        if last_incl_thresh is not None and abs(incl[-1]) > last_incl_thresh:
+        if incl.shape[0] > 0 and last_incl_thresh is not None and abs(incl[-1]) > last_incl_thresh:
             incl[-1] = 0
 
         distances_incl = self.elevation_profile.distances[:-1]
@@ -325,7 +330,19 @@ class TripGenerator:
 
         self.current_osm_data = None
 
-    def generate_from_railway_db(self, trip_id) -> Trip:
+    def generate_from_railway_db(self, trip_id, recalculate=False) -> Trip:
+        """
+
+        Parameters
+        ----------
+        trip_id
+        recalculate
+            if True then trip is not loaded from database, but the properties are recalculated
+
+        Returns
+        -------
+
+        """
 
         if self.railway_db is None:
             self.railway_db = RailwayDatabase(self.engine)
@@ -349,7 +366,7 @@ class TripGenerator:
         timetable["departure_time"] = np.datetime64(date) + timetable.departure_time
 
         # check if generated trip is already stored in database
-        if self.railway_db.contains_generated_trip(trip_id):
+        if not recalculate and self.railway_db.contains_generated_trip(trip_id):
 
             # if so get the data from database
             brunnels = self.railway_db.get_trip_brunnels(trip_id)
