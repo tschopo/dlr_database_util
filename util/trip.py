@@ -266,7 +266,7 @@ class Trip:
         elevation_orig = self.get_elevation(smoothed=False)
         elevation_smoothed = self.get_elevation(smoothed=True)
 
-        if np.all(elevation_smoothed.elevation == elevation_orig.elevation):
+        if np.all(elevation_smoothed.elevation.values == elevation_orig.elevation.values):
             elevation_orig = None
 
         if elevation_smoothed.shape[0] == 0:

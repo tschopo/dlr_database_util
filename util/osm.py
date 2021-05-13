@@ -15,7 +15,7 @@ from geopandas import GeoDataFrame, GeoSeries
 from pandas import DataFrame
 from shapely.geometry import LineString
 from shapely.geometry import Point
-from shapely.ops import transform, unary_union
+from shapely.ops import unary_union
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
@@ -32,9 +32,9 @@ def sql_get_srid(engine: Engine, schema: str = "public", table: str = "osm_railw
 
 
 def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engine, crs: Optional[Any] = None,
-                          table_srid: Optional[int] = None, get_osm_buffer: float = 0.0001,
+                          get_osm_srid: Optional[int] = 25832, get_osm_buffer: float = 10.,
                           filter_difference_length: float = 1., schema: str = "public",
-                          table: str = "osm_railways", geom_column: str = "geom", ) -> GeoDataFrame:
+                          table: str = "osm_railways", geom_column: str = "geom") -> GeoDataFrame:
     """
     Get osm data for a LineString. Raises an Exception if no osm data is found.
 
@@ -45,9 +45,10 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
     crs : shapely crs string or object
         the crs of the LineString, if linestring is a LineString. If linestring is a GeoSeries the CRS of the GeoSeries
         is taken
-    table_srid : int, optional
-        The srid of the osm table. If not provided, retrieves the srid from the database
-    get_osm_buffer : float, default = 0.0001
+    get_osm_srid : int
+        The srid which is used internally to get the osm data (the linestring and the osm geometries are converted to
+        this srid in the sql query)
+    get_osm_buffer : float, default = 10(m)
                 Buffer used to get all osm data around the trip that lies in the buffer
     filter_difference_length : float, default = 1
         Filter segments smaller than this length from difference of osm and trip
@@ -58,45 +59,39 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
     Returns
     -------
         geopandas GeoDataFrame
+        in crs of the linestring
     """
-
-    # convert the linestring to the same crs as table, so that intersection buffer works
-    if table_srid is None:
-        table_srid = int(sql_get_srid(engine, schema=schema, table=table, geom_column=geom_column))
-
-    crs_to = pyproj.CRS(table_srid)
 
     if crs is not None:
         crs = pyproj.CRS(crs)
 
     if isinstance(linestring, GeoSeries):
         crs = linestring.crs
-        linestring_pd = linestring
+        linestring_pd = linestring.copy()
         linestring = linestring.iloc[0]
     else:
         linestring_pd = gpd.GeoSeries(linestring, name="geom", crs=crs)
 
     if crs is None:
-        raise Exception("parameter linestring must be GeoSeries or crs parameter must be given")
+        raise Exception("Parameter 'linestring' must be GeoSeries or 'crs' parameter must be given!")
 
-    # transform the linestring crs to the table crs
-    project = pyproj.Transformer.from_crs(crs, crs_to, always_xy=True).transform
-    linestring = transform(project, linestring)
-
-    # no parameterized input for column names
+    # no parameterized input for column names --> escape input
     geom_column = re.sub('[^A-Za-z0-9_]+', '', geom_column)
     table = re.sub('[^A-Za-z0-9_]+', '', table)
     schema = re.sub('[^A-Za-z0-9_]+', '', schema)
 
     sql = """
-        SELECT *
-        FROM {schema}.{table}
-        WHERE ST_intersects(ST_GeomFromText(:linestring,:srid),st_buffer({geom_column},:intersect_buffer))
-        """.format(schema=schema, table=table, geom_column=geom_column)
+    SELECT *
+    FROM {schema}.{table}
+    WHERE ST_intersects(ST_Transform(ST_GeomFromText(:linestring,:linestring_crs),:srid),
+        st_buffer(ST_Transform({geom_column},:srid),:intersect_buffer))
+    """.format(schema=schema, table=table, geom_column=geom_column)
 
     with engine.connect() as connection:
         osm_data = gpd.read_postgis(text(sql), geom_col='geom', con=connection,
-                                    params={"linestring": linestring.wkt, "srid": table_srid,
+                                    params={"linestring": linestring.wkt,
+                                            "linestring_crs": crs.to_epsg(),
+                                            "srid": get_osm_srid,
                                             "intersect_buffer": get_osm_buffer})
 
     osm_data[["way_id",
@@ -153,13 +148,13 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
     osm_data['start_point'] = osm_data.apply(lambda r: Point(r['geom'].coords[0]), axis=1)
     osm_data['end_point'] = osm_data.apply(lambda r: Point(r['geom'].coords[-1]), axis=1)
 
-    final_osm = combine_osm_pipeline(osm_data, trip_geom, filter_difference_length=filter_difference_length)
+    osm_data = combine_osm_pipeline(osm_data, trip_geom, filter_difference_length=filter_difference_length)
 
-    final_osm = final_osm.drop_duplicates(subset=["way_id"])
+    osm_data = osm_data.drop_duplicates(subset=["way_id"])
 
-    final_osm = finalize_osm(final_osm, trip_geom)
+    osm_data = add_osm_to_geom(osm_data, trip_geom)
 
-    return final_osm
+    return osm_data
 
 
 def get_trip_where_no_osm(trip_geom: GeoSeries, osm_data: GeoDataFrame, buffer_size: float = 8.,
@@ -285,22 +280,18 @@ def calc_distances(osm_data: GeoDataFrame, trip_geom: GeoSeries, geom_col: str =
     return osm_data
 
 
-def finalize_osm(osm_data: GeoDataFrame, trip_geom, filter_inactive: bool = False):
+def add_osm_to_geom(osm_data: GeoDataFrame, trip_geom: GeoSeries):
     """
-    Calculates overlapping segments along the trip geometry. Removes overlapping if they dont have status=active,
-    or they are a service track.
-    Adds start_point, end_point, end_point_distance, end_point_distance columns.
-    Sorts the data after start_point.
     Aligns the geoms so they all point in same direction.
+    Adds the osm properties to the trip_geom.
+    Adds start_point, end_point, start_point_distance, end_point_distance columns.
+    Sorts the data after start_point.
 
     Parameters
     ----------
 
     osm_data
     trip_geom
-    filter_inactive
-        if True filters overlapping segments with status != active and service tracks
-        if False then no overlapping segments are discarded.
 
     """
 
@@ -308,12 +299,12 @@ def finalize_osm(osm_data: GeoDataFrame, trip_geom, filter_inactive: bool = Fals
     osm_data = calc_distances(osm_data, trip_geom)
 
     # make linestrings all same direction
+    # flip if wrong dir
     osm_data["geom"] = osm_data.apply(
         lambda r: LineString(list(r['geom'].coords)[::-1]) if r['start_point_distance'] > r[
             'end_point_distance'] else r['geom'], axis=1)
 
     # take into account maxspeed forward / backward
-    # flip if wrong dir
     t = osm_data.apply(
         lambda r: r['maxspeed_backward'] if (r['start_point_distance'] > r['end_point_distance']) else r[
             'maxspeed_forward'], axis=1)
@@ -324,13 +315,15 @@ def finalize_osm(osm_data: GeoDataFrame, trip_geom, filter_inactive: bool = Fals
 
     # recalculate distances and sort
     osm_data = calc_distances(osm_data, trip_geom)
-
     osm_data.sort_values(['start_point_distance', 'end_point_distance'], inplace=True)
     osm_data.reset_index(drop=True, inplace=True)
 
     # problem when the trip_geom has overlapping segments (e.g. at "Kopfbahnhöfe")
-    # identify overlapping segments. in the overlapping segments duplicate the osm data with flipped geometry
+    # identify overlapping segments in trip geom.
+    # in the overlapping segments duplicate the osm data with flipped geometry
     # get the segments where trip_geom crosses itself
+    # this is kind of hacky, would be better to split trip_geom at sharp turns and apply get_osm for each slitted
+    # segment.
     linestrings = []
     for a, b in zip(trip_geom.iloc[0].coords, trip_geom.iloc[0].coords[1:]):
         linestrings.append(LineString([a, b]))
@@ -349,6 +342,7 @@ def finalize_osm(osm_data: GeoDataFrame, trip_geom, filter_inactive: bool = Fals
     for index, row in doubled_osm.iterrows():
         row["geom"] = LineString(row["geom"].coords[::-1])
 
+        # flip
         t_spd = row["start_point_distance"]
         t_sp = row["start_point"]
         row["start_point_distance"] = row["end_point_distance"]
@@ -363,78 +357,239 @@ def finalize_osm(osm_data: GeoDataFrame, trip_geom, filter_inactive: bool = Fals
     osm_data.sort_values(['start_point_distance', 'end_point_distance'], inplace=True)
     osm_data.reset_index(drop=True, inplace=True)
 
-    # get overlapping segments
-    # important: data must be sorted after start_distance
-    # step 1: assign plausible values to maxspeed, electrified, brunnels for all overlapping segments
-    overlapping = []
-    for i, row in osm_data.iterrows():
+    # --------------------
 
-        # find all overlapping segments for this segment
-        overlapping_idx = osm_data[i + 1:].index[
-            row["end_point_distance"] > osm_data[i + 1:]["start_point_distance"]].tolist()
+    # split trip_geom at every start and endpoint in osm_data
+    # for each split trip segment get all osm data that overlaps and assign values from these osm segments
 
-        # add this segment to overlapping
-        if len(overlapping_idx) > 0:
-            overlapping_idx += [i]
+    cut_distances = np.append(osm_data.start_point_distance.values, osm_data.end_point_distance.values)
 
-            overlapping += overlapping_idx
+    linestring = trip_geom.iloc[0]
 
-            # set maxspeed to highest value
-            maxspeeds = osm_data.iloc[overlapping_idx]["maxspeed"].values
-            if not np.isnan(maxspeeds).all():
-                osm_data.iloc[i, osm_data.columns.get_loc("maxspeed")] = np.nanmax(maxspeeds)
+    # add linestring end to cut_distances and 0
+    cut_distances = np.append(cut_distances, [0, linestring.length])
 
-            # set electrified to yes if there is a yes
-            electrified = osm_data.iloc[overlapping_idx]["electrified"].values
-            if "yes" in electrified:
-                osm_data.iloc[i, osm_data.columns.get_loc("electrified")] = "yes"
+    # remove cut distances that are larger than trip
+    cut_distances = cut_distances[cut_distances <= linestring.length]
 
-            # set tunnel to yes if there is a yes
-            tunnels = osm_data.iloc[overlapping_idx]["tunnel"].values
-            if "yes" in tunnels:
-                osm_data.iloc[i, osm_data.columns.get_loc("tunnel")] = "yes"
+    # sort
+    cut_distances = np.unique(np.sort(cut_distances))
 
-            # set bridge to yes if there is a yes
-            bridges = osm_data.iloc[overlapping_idx]["bridge"].values
-            if "yes" in bridges:
-                osm_data.iloc[i, osm_data.columns.get_loc("bridge")] = "yes"
+    # cut trip geom into segments
+    segments = []
+    assert cut_distances[-1] >= linestring.length
+    rest = linestring
+    for cut_distance in cut_distances[::-1]:
+        if rest is not None:
+            rest, segment = _cut_line_at_distance(rest, cut_distance)
+            if segment is not None:
+                segments.append(segment)
 
-    # step 2:
-    # set the endpoint to the next startpoint for overlapping segments
-    drop_idx = []
-    for i in range(osm_data.shape[0]-1):
-        # if overlaps
-        if osm_data.at[i, "end_point_distance"] > osm_data.at[i+1, "start_point_distance"]:
+    start_distances = cut_distances[:-1]
+    end_distances = cut_distances[1:]
 
-            # adjust endpoint
-            osm_data.at[i, "end_point_distance"] = osm_data.at[i + 1, "start_point_distance"]
+    # for each segment get osm data that lies in segment
+    assert (len(segments) == len(start_distances) == len(end_distances))
 
-            # it can happen that the segment has 0 length --> drop
-            if osm_data.at[i, "start_point_distance"] >= osm_data.at[i, "end_point_distance"]:
-                drop_idx.append(i)
+    data = {'way_id': [],
+            'type': [],
+            'status': [],
+            'electrified': [],
+            'electrification': [],
+            'maxspeed': [],
+            'maxspeed_forward': [],
+            'maxspeed_backward': [],
+            'bridge': [],
+            'bridge_type': [],
+            'tunnel': [],
+            'tunnel_type': [],
+            'embankment': [],
+            'cutting': [],
+            'ref': [],
+            'gauge': [],
+            'traffic_mode': [],
+            'service': [],
+            'usage': [],
+            'voltage': [],
+            'frequency': [],
+            'tags': [],
+            'geom': [],
+            'start_point': [],
+            'end_point': [],
+            'start_point_distance': [],
+            'end_point_distance': [],
+            'way_ids': []}
 
-    osm_data.drop(drop_idx, inplace=True)
+    for i, segment in enumerate(segments):
+        # get osm_data that overlaps
+        overlapping_osm = osm_data[
+            (osm_data.start_point_distance < end_distances[i]) & (osm_data.end_point_distance > start_distances[i])]
+        if overlapping_osm.shape[0] == 0:
+            continue
 
-    # from overlapping filter sections that are not active or are service tracks
-    # remove isin(overlapping) and ((status != active) or (service != 'None))
-    if filter_inactive:
-        keep = (~osm_data.index.isin(overlapping)) | ((osm_data.status == "active") & (osm_data.service == "None"))
+        longest_segment_ix = np.argmin(overlapping_osm.length)
 
-        osm_data = osm_data[keep]
+        # set maxspeed to highest value
+        maxspeeds = overlapping_osm["maxspeed"].values
+        if not np.isnan(maxspeeds).all():
+            maxspeed = np.nanmax(maxspeeds)
+        else:
+            maxspeed = np.nan
 
-    osm_data.reset_index(drop=True, inplace=True)
+        # set maxspeed_forward to highest value
+        maxspeeds_forward = overlapping_osm["maxspeed_forward"].values
+        if not np.isnan(maxspeeds_forward).all():
+            maxspeed_forward = np.nanmax(maxspeeds_forward)
+        else:
+            maxspeed_forward = np.nan
 
-    # this way there are tracks lost. add final step: compute missing segments
-    #  get all osm in missing segment
-    #  create new osm row where geom is missing segment, and values are computed from the osm segments
-    #  e.g. max(maxspeeds), tunnel = yes if any yes, bridge = yes if any yes, electrified = yes if any yes ...
+        # set maxspeed_backward to highest value
+        maxspeeds_backward = overlapping_osm["maxspeed_backward"].values
+        if not np.isnan(maxspeeds_backward).all():
+            maxspeed_backward = np.nanmax(maxspeeds_backward)
+        else:
+            maxspeed_backward = np.nan
+
+        # set electrified to yes if there is a yes
+        electrifieds = overlapping_osm["electrified"].values
+        if "yes" in electrifieds:
+            electrified = "yes"
+            electrification = overlapping_osm[overlapping_osm.electrified == "yes"]["electrification"].iloc[0]
+            voltage = overlapping_osm[overlapping_osm.electrified == "yes"]["voltage"].iloc[0]
+            frequency = overlapping_osm[overlapping_osm.electrified == "yes"]["frequency"].iloc[0]
+
+        elif "no" in electrifieds:
+            electrified = "no"
+            electrification = "none"
+            voltage = None
+            frequency = None
+        else:
+            electrified = "unknown"
+            electrification = "unknown"
+            voltage = None
+            frequency = None
+
+        # set tunnel to yes if there is a yes
+        tunnels = overlapping_osm["tunnel"].values
+        if "yes" in tunnels:
+            tunnel = "yes"
+            tunnel_type = overlapping_osm[overlapping_osm.tunnel == "yes"]["tunnel_type"].iloc[0]
+        else:
+            tunnel = "no"
+            tunnel_type = None
+
+        # set bridge to yes if there is a yes
+        bridges = overlapping_osm["bridge"].values
+        if "yes" in bridges:
+            bridge = "yes"
+            bridge_type = overlapping_osm[overlapping_osm.bridge == "yes"]["bridge_type"].iloc[0]
+        else:
+            bridge = "no"
+            bridge_type = None
+
+        embankments = overlapping_osm["embankment"].values
+        if "yes" in embankments:
+            embankment = "yes"
+        else:
+            embankment = "no"
+
+        cuttings = overlapping_osm["cutting"].values
+        if "yes" in cuttings:
+            cutting = "yes"
+        else:
+            cutting = "no"
+
+        types = overlapping_osm["type"].values
+        if "rail" in types:
+            _type = "rail"
+        else:
+            _type = overlapping_osm.iloc[longest_segment_ix]['type']
+
+        status = overlapping_osm["status"].values
+        if "active" in status:
+            status = "active"
+        else:
+            status = overlapping_osm.iloc[longest_segment_ix]['status']
+
+        usages = overlapping_osm["usage"].values
+        if "main" in usages:
+            usage = "main"
+        elif "branch" in usages:
+            usage = "branch"
+        elif "tourism" in usages:
+            usage = "tourism"
+        elif "industrial" in usages:
+            usage = "industrial"
+        else:
+            usage = overlapping_osm.iloc[longest_segment_ix]['usage']
+
+        gauges = overlapping_osm["gauge"].values
+        if 1435 in gauges or '1435' in gauges:
+            gauge = 1435
+        elif 1000 in gauges or '1000' in gauges:
+            gauge = 1000
+        else:
+            gauge = overlapping_osm.iloc[longest_segment_ix]['gauge']
+
+        ref = overlapping_osm.iloc[longest_segment_ix]['ref']
+        if ref is None:
+            refs = overlapping_osm["ref"].values
+            if refs[~pd.isnull(refs)].shape[0] > 0:
+                ref = refs[0]
+
+        traffic_mode = overlapping_osm.iloc[longest_segment_ix]['traffic_mode']
+        tags = overlapping_osm.iloc[longest_segment_ix]['tags']
+        service = overlapping_osm.iloc[longest_segment_ix]['service']
+        way_id = overlapping_osm.iloc[longest_segment_ix]['way_id']
+
+        geom = segment
+        start_point = Point(segment.coords[0])
+        end_point = Point(segment.coords[-1])
+
+        start_point_distance = start_distances[i]
+        end_point_distance = end_distances[i]
+
+        # add column way_ids where all way_ids of overlapping
+        way_ids = ';'.join([str(s) for s in overlapping_osm.way_id.values])
+
+        data['way_id'].append(way_id)
+        data['type'].append(_type)
+        data['status'].append(status)
+        data['electrified'].append(electrified)
+        data['electrification'].append(electrification)
+        data['maxspeed'].append(maxspeed)
+        data['maxspeed_forward'].append(maxspeed_forward)
+        data['maxspeed_backward'].append(maxspeed_backward)
+        data['bridge'].append(bridge)
+        data['bridge_type'].append(bridge_type)
+        data['tunnel'].append(tunnel)
+        data['tunnel_type'].append(tunnel_type)
+        data['embankment'].append(embankment)
+        data['cutting'].append(cutting)
+        data['ref'].append(ref)
+        data['gauge'].append(gauge)
+        data['traffic_mode'].append(traffic_mode)
+        data['service'].append(service)
+        data['usage'].append(usage)
+        data['voltage'].append(voltage)
+        data['frequency'].append(frequency)
+        data['tags'].append(tags)
+        data['geom'].append(geom)
+        data['start_point'].append(start_point)
+        data['end_point'].append(end_point)
+        data['start_point_distance'].append(start_point_distance)
+        data['end_point_distance'].append(end_point_distance)
+        data['way_ids'].append(way_ids)
+
+    osm_data = gpd.GeoDataFrame(data, geometry='geom', crs=osm_data.crs)
 
     return osm_data
 
 
 def get_osm_prop(osm_data: GeoDataFrame, prop: str, brunnel_filter_length: float = 10., round_int: bool = True,
                  train_length: Optional[float] = 150., maxspeed_if_all_null: float = 120.,
-                 maxspeed_null_segment_length=1000., maxspeed_null_max_frac: float = 0.5, maxspeed_min_if_null: float = 60.,
+                 maxspeed_null_segment_length=1000., maxspeed_null_max_frac: float = 0.5,
+                 maxspeed_min_if_null: float = 60.,
                  trip_length: Optional[float] = None, harmonize_end_dists: bool = True,
                  set_unknown_electrified_to_no: bool = True, tpt: bool = True):
     """
@@ -780,9 +935,9 @@ def spatial_median(vals, lengths):
     return median
 
 
-def osm_railways_to_psql(geofabrik_pbf_folder: str, geofabrik_pbf: str, database="liniendatenbank", user="postgres", password=None, osmium_filter = True):
+def osm_railways_to_psql(geofabrik_pbf_folder: str, geofabrik_pbf: str, database="liniendatenbank", user="postgres",
+                         password=None, osmium_filter=True):
     """
-    Warning not tested
 
     Parameters
     ----------
@@ -795,6 +950,7 @@ def osm_railways_to_psql(geofabrik_pbf_folder: str, geofabrik_pbf: str, database
     # filter geofabrik germany osm data to only include railway data, to speedup import
     # test if osmium is installed
     if which('osmium') is not None and osmium_filter:
+        # todo use subprocess here instead os.system
         os.system('osmium tags-filter -o ' + geofabrik_pbf_folder + '/filtered.osm.pbf '
                   + geofabrik_pbf +
                   ' nwr/railway nwr/disused:railway '
@@ -807,11 +963,12 @@ def osm_railways_to_psql(geofabrik_pbf_folder: str, geofabrik_pbf: str, database
     lua_path = os.path.dirname(os.path.abspath(__file__)) + '/railways.lua'
     geofabrik_pbf_path = geofabrik_pbf_folder + '/' + geofabrik_pbf
     proc = subprocess.Popen(['osm2pgsql', '-d', database, '-U', user, '-W', '-O', 'flex', '-S', lua_path,
-                             geofabrik_pbf_path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                             geofabrik_pbf_path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            text=True)
     proc.stdin.write(password+'\n')
     proc.stdin.flush()
 
-    o, e = proc.communicate()
+    e, o = proc.communicate()
 
     print('Output: ' + o)
     print('Error: ' + e)
@@ -907,3 +1064,21 @@ def resample_prop(prop_df: DataFrame, distances: np.ndarray, prop: str) -> DataF
     resampled_props = pd.DataFrame(data)
 
     return resampled_props
+
+
+def _cut_line_at_distance(line, distance):
+    # Cuts a line in two at a distance from its starting point
+    if distance <= 0.0:
+        return None, LineString(line)
+    if distance >= line.length:
+        return LineString(line), None
+    coords = list(line.coords)
+    for i, p in enumerate(coords):
+        point_distance = line.project(Point(p))
+        if point_distance == distance:
+            return [
+                LineString(coords[:i+1]),
+                LineString(coords[i:])]
+        if point_distance > distance:
+            cp = line.interpolate(distance)
+            return LineString(coords[:i] + [(cp.x, cp.y)]), LineString([(cp.x, cp.y)] + coords[i:])
