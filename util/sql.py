@@ -379,7 +379,7 @@ class RailwayDatabase:
 
     def fix_osm(self, fix_geojson: str, prop: str, crs=25832):
         """
-        Fix osm data from geojson. The geojson contains the correct data. All osm features that intersect the geojson
+        Fix osm data (in osm_railways) from geojson. The geojson contains the correct data. All osm features that intersect the geojson
         are set to the prop in the geojson.
 
         Parameters
@@ -399,7 +399,6 @@ class RailwayDatabase:
         # escape prop for sql
         prop = re.sub('[^A-Za-z0-9_]+', '', prop)
 
-        # get the candidate trip
         sql = """ UPDATE osm_railways
         set {prop} = :prop_val
         where way_id = :way_id

@@ -304,12 +304,11 @@ class Trip:
 
 
 class TripGenerator:
-    # TODO implement caching so that trip is returned if already generated with same parameters
 
     def __init__(self, dem: DEM, db_connection: Engine, first_sample_distance: float = 10.0,
                  brunnel_filter_length: float = 10., interpolated: bool = True, ele_pipeline_kwargs=None,
                  get_osm_kwargs=None):
-        # TODO better would be to store all parameters and not use kwargs
+        # better would be to store all parameters and not use kwargs
         # store generation parameters with trip so that reproducible
 
         self.railway_db = None

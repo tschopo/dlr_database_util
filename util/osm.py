@@ -424,123 +424,6 @@ def add_osm_to_geom(osm_data: GeoDataFrame, trip_geom: GeoSeries):
         # get osm_data that overlaps
         overlapping_osm = osm_data[
             (osm_data.start_point_distance < end_distances[i]) & (osm_data.end_point_distance > start_distances[i])]
-        if overlapping_osm.shape[0] == 0:
-            continue
-
-        longest_segment_ix = np.argmin(overlapping_osm.length)
-
-        # set maxspeed to highest value
-        maxspeeds = overlapping_osm["maxspeed"].values
-        if not np.isnan(maxspeeds).all():
-            maxspeed = np.nanmax(maxspeeds)
-        else:
-            maxspeed = np.nan
-
-        # set maxspeed_forward to highest value
-        maxspeeds_forward = overlapping_osm["maxspeed_forward"].values
-        if not np.isnan(maxspeeds_forward).all():
-            maxspeed_forward = np.nanmax(maxspeeds_forward)
-        else:
-            maxspeed_forward = np.nan
-
-        # set maxspeed_backward to highest value
-        maxspeeds_backward = overlapping_osm["maxspeed_backward"].values
-        if not np.isnan(maxspeeds_backward).all():
-            maxspeed_backward = np.nanmax(maxspeeds_backward)
-        else:
-            maxspeed_backward = np.nan
-
-        # set electrified to yes if there is a yes
-        electrifieds = overlapping_osm["electrified"].values
-        if "yes" in electrifieds:
-            electrified = "yes"
-            electrification = overlapping_osm[overlapping_osm.electrified == "yes"]["electrification"].iloc[0]
-            voltage = overlapping_osm[overlapping_osm.electrified == "yes"]["voltage"].iloc[0]
-            frequency = overlapping_osm[overlapping_osm.electrified == "yes"]["frequency"].iloc[0]
-
-        elif "no" in electrifieds:
-            electrified = "no"
-            electrification = "none"
-            voltage = None
-            frequency = None
-        else:
-            electrified = "unknown"
-            electrification = "unknown"
-            voltage = None
-            frequency = None
-
-        # set tunnel to yes if there is a yes
-        tunnels = overlapping_osm["tunnel"].values
-        if "yes" in tunnels:
-            tunnel = "yes"
-            tunnel_type = overlapping_osm[overlapping_osm.tunnel == "yes"]["tunnel_type"].iloc[0]
-        else:
-            tunnel = "no"
-            tunnel_type = None
-
-        # set bridge to yes if there is a yes
-        bridges = overlapping_osm["bridge"].values
-        if "yes" in bridges:
-            bridge = "yes"
-            bridge_type = overlapping_osm[overlapping_osm.bridge == "yes"]["bridge_type"].iloc[0]
-        else:
-            bridge = "no"
-            bridge_type = None
-
-        embankments = overlapping_osm["embankment"].values
-        if "yes" in embankments:
-            embankment = "yes"
-        else:
-            embankment = "no"
-
-        cuttings = overlapping_osm["cutting"].values
-        if "yes" in cuttings:
-            cutting = "yes"
-        else:
-            cutting = "no"
-
-        types = overlapping_osm["type"].values
-        if "rail" in types:
-            _type = "rail"
-        else:
-            _type = overlapping_osm.iloc[longest_segment_ix]['type']
-
-        status = overlapping_osm["status"].values
-        if "active" in status:
-            status = "active"
-        else:
-            status = overlapping_osm.iloc[longest_segment_ix]['status']
-
-        usages = overlapping_osm["usage"].values
-        if "main" in usages:
-            usage = "main"
-        elif "branch" in usages:
-            usage = "branch"
-        elif "tourism" in usages:
-            usage = "tourism"
-        elif "industrial" in usages:
-            usage = "industrial"
-        else:
-            usage = overlapping_osm.iloc[longest_segment_ix]['usage']
-
-        gauges = overlapping_osm["gauge"].values
-        if 1435 in gauges or '1435' in gauges:
-            gauge = 1435
-        elif 1000 in gauges or '1000' in gauges:
-            gauge = 1000
-        else:
-            gauge = overlapping_osm.iloc[longest_segment_ix]['gauge']
-
-        ref = overlapping_osm.iloc[longest_segment_ix]['ref']
-        if ref is None:
-            refs = overlapping_osm["ref"].values
-            if refs[~pd.isnull(refs)].shape[0] > 0:
-                ref = refs[0]
-
-        traffic_mode = overlapping_osm.iloc[longest_segment_ix]['traffic_mode']
-        tags = overlapping_osm.iloc[longest_segment_ix]['tags']
-        service = overlapping_osm.iloc[longest_segment_ix]['service']
-        way_id = overlapping_osm.iloc[longest_segment_ix]['way_id']
 
         geom = segment
         start_point = Point(segment.coords[0])
@@ -549,8 +432,151 @@ def add_osm_to_geom(osm_data: GeoDataFrame, trip_geom: GeoSeries):
         start_point_distance = start_distances[i]
         end_point_distance = end_distances[i]
 
-        # add column way_ids where all way_ids of overlapping
-        way_ids = ';'.join([str(s) for s in overlapping_osm.way_id.values])
+        # if there is no overlapping, set props to nan
+        if overlapping_osm.shape[0] == 0:
+
+            way_id = -9999
+            _type = 'missing'
+            status = 'missing'
+            electrified = 'unknown'
+            electrification = 'unknown'
+            maxspeed = np.nan
+            maxspeed_forward = np.nan
+            maxspeed_backward = np.nan
+            bridge = 'no'
+            bridge_type = None
+            tunnel = 'no'
+            tunnel_type = None
+            embankment = 'no'
+            cutting = 'no'
+            ref = None
+            gauge = None
+            traffic_mode = None
+            service = None
+            usage = None
+            voltage = None
+            frequency = None
+            tags = None
+            way_ids = None
+        else:
+
+            longest_segment_ix = np.argmin(overlapping_osm.length)
+
+            # set maxspeed to highest value
+            maxspeeds = overlapping_osm["maxspeed"].values
+            if not np.isnan(maxspeeds).all():
+                maxspeed = np.nanmax(maxspeeds)
+            else:
+                maxspeed = np.nan
+
+            # set maxspeed_forward to highest value
+            maxspeeds_forward = overlapping_osm["maxspeed_forward"].values
+            if not np.isnan(maxspeeds_forward).all():
+                maxspeed_forward = np.nanmax(maxspeeds_forward)
+            else:
+                maxspeed_forward = np.nan
+
+            # set maxspeed_backward to highest value
+            maxspeeds_backward = overlapping_osm["maxspeed_backward"].values
+            if not np.isnan(maxspeeds_backward).all():
+                maxspeed_backward = np.nanmax(maxspeeds_backward)
+            else:
+                maxspeed_backward = np.nan
+
+            # set electrified to yes if there is a yes
+            electrifieds = overlapping_osm["electrified"].values
+            if "yes" in electrifieds:
+                electrified = "yes"
+                electrification = overlapping_osm[overlapping_osm.electrified == "yes"]["electrification"].iloc[0]
+                voltage = overlapping_osm[overlapping_osm.electrified == "yes"]["voltage"].iloc[0]
+                frequency = overlapping_osm[overlapping_osm.electrified == "yes"]["frequency"].iloc[0]
+
+            elif "no" in electrifieds:
+                electrified = "no"
+                electrification = "none"
+                voltage = None
+                frequency = None
+            else:
+                electrified = "unknown"
+                electrification = "unknown"
+                voltage = None
+                frequency = None
+
+            # set tunnel to yes if there is a yes
+            tunnels = overlapping_osm["tunnel"].values
+            if "yes" in tunnels:
+                tunnel = "yes"
+                tunnel_type = overlapping_osm[overlapping_osm.tunnel == "yes"]["tunnel_type"].iloc[0]
+            else:
+                tunnel = "no"
+                tunnel_type = None
+
+            # set bridge to yes if there is a yes
+            bridges = overlapping_osm["bridge"].values
+            if "yes" in bridges:
+                bridge = "yes"
+                bridge_type = overlapping_osm[overlapping_osm.bridge == "yes"]["bridge_type"].iloc[0]
+            else:
+                bridge = "no"
+                bridge_type = None
+
+            embankments = overlapping_osm["embankment"].values
+            if "yes" in embankments:
+                embankment = "yes"
+            else:
+                embankment = "no"
+
+            cuttings = overlapping_osm["cutting"].values
+            if "yes" in cuttings:
+                cutting = "yes"
+            else:
+                cutting = "no"
+
+            types = overlapping_osm["type"].values
+            if "rail" in types:
+                _type = "rail"
+            else:
+                _type = overlapping_osm.iloc[longest_segment_ix]['type']
+
+            status = overlapping_osm["status"].values
+            if "active" in status:
+                status = "active"
+            else:
+                status = overlapping_osm.iloc[longest_segment_ix]['status']
+
+            usages = overlapping_osm["usage"].values
+            if "main" in usages:
+                usage = "main"
+            elif "branch" in usages:
+                usage = "branch"
+            elif "tourism" in usages:
+                usage = "tourism"
+            elif "industrial" in usages:
+                usage = "industrial"
+            else:
+                usage = overlapping_osm.iloc[longest_segment_ix]['usage']
+
+            gauges = overlapping_osm["gauge"].values
+            if 1435 in gauges or '1435' in gauges:
+                gauge = 1435
+            elif 1000 in gauges or '1000' in gauges:
+                gauge = 1000
+            else:
+                gauge = overlapping_osm.iloc[longest_segment_ix]['gauge']
+
+            ref = overlapping_osm.iloc[longest_segment_ix]['ref']
+            if ref is None:
+                refs = overlapping_osm["ref"].values
+                if refs[~pd.isnull(refs)].shape[0] > 0:
+                    ref = refs[0]
+
+            traffic_mode = overlapping_osm.iloc[longest_segment_ix]['traffic_mode']
+            tags = overlapping_osm.iloc[longest_segment_ix]['tags']
+            service = overlapping_osm.iloc[longest_segment_ix]['service']
+            way_id = overlapping_osm.iloc[longest_segment_ix]['way_id']
+
+            # add column way_ids where all way_ids of overlapping
+            way_ids = ';'.join([str(s) for s in overlapping_osm.way_id.values])
 
         data['way_id'].append(way_id)
         data['type'].append(_type)
