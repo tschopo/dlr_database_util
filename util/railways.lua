@@ -314,8 +314,7 @@ function osm2pgsql.process_node(object)
 end
 
 -- lua cannot search lists, convert to table with key as value
-local t = {'covered', 'viaduct', 'aqueduct', 'cantilever', 'boardwalk', 'movable', 'trestle', 'low_water_crossing', 'lift', 'abandoned', }
-local bridge_types = {}
+local bridge_types = {'covered', 'viaduct', 'aqueduct', 'cantilever', 'boardwalk', 'movable', 'trestle', 'low_water_crossing', 'lift', 'abandoned', }
 for _, k in ipairs(bridge_types) do
     bridge_types[k] = 1
 end
