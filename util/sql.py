@@ -2,7 +2,7 @@
 Functions that interface with the dlr "liniendatenbank" database
 """
 import re
-from typing import Any, Tuple, Optional, Union
+from typing import Any, Tuple, Optional, Union, List
 
 import geopandas as gpd
 import numpy as np
@@ -22,6 +22,13 @@ class RailwayDatabase:
 
     def __init__(self, engine):
         self.engine = engine
+
+        # TODO run, and also the other extensions used by queries
+        """
+        CREATE
+        EXTENSION if not exists
+        pg_trgm
+        """
 
     def get_trip_shape(self, trip_id: int, crs: Optional[Any] = None) -> GeoDataFrame:
         """
@@ -54,6 +61,85 @@ class RailwayDatabase:
             shape = shape.to_crs(crs)
 
         return shape
+
+    def get_trips_to_station(self, station_name: str, fuzzy=True, fuzzy_strength=0.5) -> np.ndarray:
+        """
+        Returns all trips that start at station "station_name". Performs fuzzy search if fuzzy = True.
+
+        Parameters
+        ----------
+        station_name
+        fuzzy
+
+        Returns
+        -------
+
+        """
+
+        if not fuzzy:
+            fuzzy_strength = 1.
+
+        sql = """select distinct geo_trips.trip_id
+            from geo_trips, geo_stop_times, geo_stops
+            where geo_trips.trip_id = geo_stop_times.trip_id
+            and geo_stop_times.stop_id = geo_stops.stop_id
+            and stop_sequence = 0
+            and SIMILARITY(stop_name,:start_station) > :fuzzy_strength
+        """
+
+        with self.engine.connect() as connection:
+            trips = pd.read_sql_query(text(sql), con=connection, params={"start_station": station_name, "fuzzy_strength": fuzzy_strength})
+
+        return trips.values
+
+    def get_trips_from_station(self, station_name: str, fuzzy=True, fuzzy_strength=0.5) -> np.ndarray:
+        """
+        Returns all trips that end at station "station_name". Performs fuzzy search if fuzzy = True.
+
+        Parameters
+        ----------
+        station_name
+        fuzzy
+
+        Returns
+        -------
+
+        """
+
+        if not fuzzy:
+            fuzzy_strength = 1.
+
+        sql = """select distinct calc_n_stops.trip_id
+            from geo_trips, geo_stop_times, geo_stops, calc_n_stops
+            where geo_trips.trip_id = geo_stop_times.trip_id
+            and geo_stop_times.stop_id = geo_stops.stop_id
+            and calc_n_stops.trip_id = geo_trips.trip_id
+            and stop_sequence = n_stops
+            and SIMILARITY(stop_name,:end_station) > :fuzzy_strength;
+        """
+
+        with self.engine.connect() as connection:
+            trips = pd.read_sql_query(text(sql), con=connection,
+                                      params={"end_station": station_name, "fuzzy_strength": fuzzy_strength})
+
+        return trips.values
+
+    def get_trips_from_to(self, from_station: Optional[str] = None, to_station: Optional[str] = None, fuzzy=True, fuzzy_strength=0.5):
+
+        if from_station is None and to_station is None:
+            raise Exception("Either start_station or end_station must be given!")
+
+        if from_station is not None:
+            start_trips = self.get_trips_from_station(from_station, fuzzy=fuzzy, fuzzy_strength=fuzzy_strength)
+            if to_station is None:
+                return start_trips
+
+        if to_station is not None:
+            end_trips = self.get_trips_to_station(to_station, fuzzy=fuzzy, fuzzy_strength=fuzzy_strength)
+            if from_station is None:
+                return end_trips
+
+        return np.intersect1d(start_trips, end_trips, assume_unique=True)
 
     def get_trip_timetable(self, trip_id: int, min_stop_duration: float = 30.,
                            round_int: bool = True, filter=True) -> DataFrame:
