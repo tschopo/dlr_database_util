@@ -168,7 +168,8 @@ class RailwayDatabase:
             select ldb_brunnels.start_dist, ldb_brunnels.end_dist
             from ldb_trip_candidates, ldb_brunnels
             where ldb_brunnels.trip_id = ldb_trip_candidates.same_geom_candidate
-            and ldb_trip_candidates.trip_id = :trip_id;
+            and ldb_trip_candidates.trip_id = :trip_id
+            order by start_dist;
             """
 
         with self.engine.connect() as connection:
@@ -182,7 +183,8 @@ class RailwayDatabase:
             select ldb_elevation.dist, ldb_elevation.elevation
             from ldb_trip_candidates, ldb_elevation
             where ldb_elevation.trip_id = ldb_trip_candidates.same_geom_candidate
-            and ldb_trip_candidates.trip_id = :trip_id;
+            and ldb_trip_candidates.trip_id = :trip_id
+            order by dist;
             """
 
         with self.engine.connect() as connection:
@@ -198,7 +200,8 @@ class RailwayDatabase:
             select ldb_electrified.*
             from ldb_trip_candidates, ldb_electrified
             where ldb_electrified.trip_id = ldb_trip_candidates.same_geom_candidate
-            and ldb_trip_candidates.trip_id = :trip_id;
+            and ldb_trip_candidates.trip_id = :trip_id
+            order by start_dist;
             """
 
         with self.engine.connect() as connection:
@@ -211,7 +214,8 @@ class RailwayDatabase:
             select ldb_maxspeed.maxspeed, ldb_maxspeed.start_dist, ldb_maxspeed.end_dist
             from ldb_trip_candidates, ldb_maxspeed
             where ldb_maxspeed.trip_id = ldb_trip_candidates.same_geom_candidate
-            and ldb_trip_candidates.trip_id = :trip_id;
+            and ldb_trip_candidates.trip_id = :trip_id
+            order by start_dist;
             """
 
         with self.engine.connect() as connection:
@@ -220,7 +224,7 @@ class RailwayDatabase:
         return maxspeed
 
     def save_trip_osm_tables(self, trip_id: int, crs=25832, replace=True, trip_id_is_candidate_trip_id=False,
-                             max_trip_length=500000, brunnel_filter_length=10., **get_osm_kwargs):
+                             max_trip_length: Optional[float] = 500000., brunnel_filter_length=10., **get_osm_kwargs):
         """
 
         Parameters
@@ -270,7 +274,7 @@ class RailwayDatabase:
 
         trip_length = trip_geom.length.iloc[0]
 
-        if trip_length > max_trip_length:
+        if max_trip_length is not None and trip_length > max_trip_length:
             return trip_id
 
         electrified = get_osm_prop(osm_data, "electrified", trip_length=trip_length)

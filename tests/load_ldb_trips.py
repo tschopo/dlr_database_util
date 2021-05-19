@@ -19,13 +19,14 @@ if __name__ == '__main__':
     def exception_wrapper(trip_id):
         print(trip_id)
         try:
-            e = railway_db.save_trip_osm_tables(int(trip_id), trip_id_is_candidate_trip_id=True, replace=True)
+            e = railway_db.save_trip_osm_tables(int(trip_id), trip_id_is_candidate_trip_id=True, replace=True,
+                                                max_trip_length=None)
             if e != 0:
                 print("LONGTRIP: " + str(e))
         except Exception as err:
             print("ERROR: " + str(trip_id))
             print(err)
 
-    pool = mp.Pool(8)
+    pool = mp.Pool(16)
 
     res = pool.map(exception_wrapper, candidate_trip_ids)

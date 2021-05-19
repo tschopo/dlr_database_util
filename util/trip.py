@@ -1,3 +1,4 @@
+import os
 from typing import Optional, List
 
 import pandas as pd
@@ -110,6 +111,9 @@ class Trip:
         if self.length < 2000:
             self.warnings.append("WARNING: Trip Length below 2km")
 
+        if self.length > 500000:
+            self.warnings.append("WARNING: Trip Length above 500km")
+
         if np.min(self.timetable.dist - self.timetable.dist.shift(1)) < 100:
             self.warnings.append("WARNING: Stations closer 100m")
 
@@ -163,7 +167,7 @@ class Trip:
     def write_input_sheet(self, simulation="tpt", template_file=None, folder=None, last_incl_thresh=15.):
 
         if simulation == "tpt" and template_file is None:
-            raise Exception("TPT writer needs a template_file")
+            template_file = os.path.dirname(os.path.abspath(__file__)) + '/tpt_input_template.xlsx'
 
         # then calculate the inclination
         incl = self.elevation_profile.inclination(degrees=False)
