@@ -62,7 +62,7 @@ class RailwayDatabase:
 
         return shape
 
-    def get_trips_to_station(self, station_name: str, fuzzy=True, fuzzy_strength=0.5) -> np.ndarray:
+    def get_trips_from_station(self, station_name: str, fuzzy=True, fuzzy_strength=0.5) -> np.ndarray:
         """
         Returns all trips that start at station "station_name". Performs fuzzy search if fuzzy = True.
 
@@ -92,7 +92,7 @@ class RailwayDatabase:
 
         return trips.values
 
-    def get_trips_from_station(self, station_name: str, fuzzy=True, fuzzy_strength=0.5) -> np.ndarray:
+    def get_trips_to_station(self, station_name: str, fuzzy=True, fuzzy_strength=0.5) -> np.ndarray:
         """
         Returns all trips that end at station "station_name". Performs fuzzy search if fuzzy = True.
 
@@ -140,6 +140,34 @@ class RailwayDatabase:
                 return end_trips
 
         return np.intersect1d(start_trips, end_trips, assume_unique=True)
+
+    def get_same_geom_and_stops_candidate(self, trip_id):
+
+        sql = """select
+            same_geom_and_stops_candidate
+            from ldb_trip_candidates where
+            trip_id = :trip_id
+        """
+
+        with self.engine.connect() as con:
+            rs = con.execute(text(sql), {'trip_id': int(trip_id)}).first()
+            trip_id = rs[0]
+
+            return trip_id
+
+    def get_same_geom_candidate(self, trip_id):
+
+        sql = """select
+            same_geom_candidate
+            from ldb_trip_candidates where
+            trip_id = :trip_id
+        """
+
+        with self.engine.connect() as con:
+            rs = con.execute(text(sql), {'trip_id': int(trip_id)}).first()
+            trip_id = rs[0]
+
+            return trip_id
 
     def get_trip_timetable(self, trip_id: int, min_stop_duration: float = 30.,
                            round_int: bool = True, filter=True) -> DataFrame:

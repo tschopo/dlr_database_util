@@ -191,7 +191,8 @@ class Trip:
                                          inclination, folder=folder)
 
         elif simulation == "sensor":
-            return write_sensor_input_sheet(self.title, self.timetable, self.electrified, self.maxspeed, inclination,
+            timetable = self.timetable[["dist", "stop_name", "stop_duration", "driving_time"]].copy()
+            return write_sensor_input_sheet(self.title, timetable, self.electrified, self.maxspeed, inclination,
                                             folder=folder)
 
     def add_simulation_results(self, output_sheet, t=10):
