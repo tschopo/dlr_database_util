@@ -76,7 +76,7 @@ class Trip:
         # set dist to 0 for first station
         if abs(self.timetable.at[self.timetable.shape[0] - 1, 'dist'] - self.length) > 250:
             self.warnings.append("WARNING: Timetable last station distance doesn't match trip length")
-        self.timetable.at[self.timetable.shape[0] - 1, 'dist'] = self.length
+        self.timetable.at[self.timetable.shape[0] - 1, 'dist'] = np.ceil(self.length)
 
         # set dist to 0 for first station
         if self.timetable.iloc[0]["dist"] > 250:
@@ -240,6 +240,10 @@ class Trip:
                 Folium map
 
         """
+
+        if prop == 'electrified':
+            self.electrified
+
         raise NotImplementedError
 
         # m = plot_osm(self.osm_data, prop=prop)

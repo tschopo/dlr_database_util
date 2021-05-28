@@ -338,8 +338,10 @@ class RailwayDatabase:
         return maxspeed
 
     def save_trip_osm_tables(self, trip_id: int, crs=25832, replace=True, trip_id_is_candidate_trip_id=False,
-                             max_trip_length: Optional[float] = 500000., brunnel_filter_length=10., **get_osm_kwargs):
+                             max_trip_length: Optional[float] = 500000., brunnel_filter_length=10.,
+                             set_unknown_electrified_to_no=True, **get_osm_kwargs):
         """
+        calculates the osm properties for the trip and saves them into the database.
 
         Parameters
         ----------
@@ -359,6 +361,7 @@ class RailwayDatabase:
             ignore trips longer than this. returns trip_id if longer.
         brunnel_filter_length
             parameter of :func:`get_osm_prop`
+        set_unknown_electrified_to_no : bool
         get_osm_kwargs
             parameters of :func:`sql_get_osm_from_line`
 
@@ -391,7 +394,8 @@ class RailwayDatabase:
         if max_trip_length is not None and trip_length > max_trip_length:
             return trip_id
 
-        electrified = get_osm_prop(osm_data, "electrified", trip_length=trip_length)
+        electrified = get_osm_prop(osm_data, "electrified", trip_length=trip_length,
+                                   set_unknown_electrified_to_no=set_unknown_electrified_to_no)
         maxspeed = get_osm_prop(osm_data, "maxspeed", trip_length=trip_length)
         brunnels = get_osm_prop(osm_data, "brunnel", brunnel_filter_length=brunnel_filter_length)
 
