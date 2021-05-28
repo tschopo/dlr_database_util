@@ -1,17 +1,20 @@
 import os
-from typing import Optional, List
+from typing import Optional, List, Union
 
 import pandas as pd
+import geopandas as gpd
 from ElevationSampler import DEM, ElevationProfile
 from folium import Map
 import numpy as np
 from geopandas import GeoSeries
 from pandas import DataFrame
 from sqlalchemy.engine import Engine
+import folium
 
 from util import sql_get_osm_from_line, get_osm_prop, RailwayDatabase, elevation_pipeline, write_tpt_input_sheet, \
     write_sensor_input_sheet, read_tpt_output_sheet, add_inputs_to_simulation_results, resample_simulation_results, \
     plot_trip_props, spatial_median
+from util.osm import _cut_line_at_distance
 
 
 class Trip:
@@ -225,7 +228,7 @@ class Trip:
         delay = simulated_driving_time - pd.to_timedelta(self.timetable['driving_time'], unit='S')
         self.timetable["delay"] = delay.shift(1)
 
-    def plot_map(self, prop=None) -> Map:
+    def plot_map(self, prop=None) -> Union[None, Map]:
         """
         Returns a folium map with the trip.
 
@@ -241,10 +244,62 @@ class Trip:
 
         """
 
-        if prop == 'electrified':
-            self.electrified
+        prop = 'maxspeed'
 
-        raise NotImplementedError
+        if prop == 'electrified':
+            map_data = self.electrified
+        elif prop == 'maxspeed':
+            map_data = self.maxspeed
+        else:
+            raise Exception("prop must either by electrified or maxspeed")
+
+        segments = []
+
+        for index, row in map_data.iterrows():
+            segment, _ = _cut_line_at_distance(self.geom.loc[0], row.end_dist)
+
+            _, segment = _cut_line_at_distance(segment, row.start_dist)
+            segments.append(segment)
+
+        map_data = gpd.GeoDataFrame(map_data, geometry=segments, crs=self.geom.crs)
+
+        map_data = map_data.to_crs(4326)
+        map_json = map_data.to_json()
+
+        m = folium.Map(location=[map_data.total_bounds[[1, 3]].mean(), map_data.total_bounds[[0, 2]].mean()],
+                       # tiles='Stamen Terrain',
+                       zoom_start=9)
+
+        if prop == "maxspeed":
+
+            colormap = folium.LinearColormap(colors=["red", "orange", "yellow", "green"],
+                                             vmin=map_data['maxspeed'].min(),
+                                             vmax=map_data['maxspeed'].max()).to_step(
+                n=len(map_data["maxspeed"].unique()))
+        elif prop == "electrified":
+
+            def colormap(x):
+                if x == 0:
+                    return '#000'
+                elif x == 1:
+                    return '#f00'
+                else:
+                    return '#aaa'
+
+        folium.GeoJson(map_json, name="geojson",
+                       style_function=lambda x: {
+                           'color': colormap(x['properties'][prop]) if x['properties'][prop] >= 0 else '#aaa',
+                           'weight': 2.5
+                       },
+                       tooltip=folium.features.GeoJsonTooltip(
+                           fields=[prop, 'start_dist', 'end_dist'],
+                           # aliases=['Max Speed', 'Electrified'],
+                           labels=True,
+                           sticky=True,
+                           toLocaleString=True)
+                       ).add_to(m)
+
+        return m
 
         # m = plot_osm(self.osm_data, prop=prop)
         # return m
