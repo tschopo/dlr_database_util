@@ -155,10 +155,11 @@ class RailwayDatabase:
             raise Exception("Either start_station or end_station must be given!")
 
         if include_return_trips:
-            from_station, to_station = to_station, from_station
-            return_trips = self.get_trips_from_to(from_station, to_station, return_id_type, fuzzy, fuzzy_strength, include_return_trips=False)
+            from_station_return, to_station_return = to_station, from_station
+            return_trips = self.get_trips_from_to(from_station_return, to_station_return, return_id_type, fuzzy, fuzzy_strength, include_return_trips=False)
+
         else:
-            return_trips = []
+            return_trips = np.array([], dtype=int)
 
         if from_station is not None:
             start_trips = self.get_trips_from_station(from_station, return_id_type=return_id_type, fuzzy=fuzzy, fuzzy_strength=fuzzy_strength)
