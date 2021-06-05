@@ -62,7 +62,7 @@ class RailwayDatabase:
 
         return shape
 
-    def get_trips_from_station(self, station_name: str, fuzzy=True, fuzzy_strength=0.5) -> np.ndarray:
+    def get_trips_from_station(self, station_name: str, return_id_type='same_geom_and_stops_candidate', fuzzy=True, fuzzy_strength=0.5) -> np.ndarray:
         """
         Returns all trips that start at station "station_name". Performs fuzzy search if fuzzy = True.
 
@@ -79,20 +79,25 @@ class RailwayDatabase:
         if not fuzzy:
             fuzzy_strength = 1.
 
-        sql = """select distinct geo_trips.trip_id
-            from geo_trips, geo_stop_times, geo_stops
-            where geo_trips.trip_id = geo_stop_times.trip_id
+        if return_id_type == 'all':
+            return_id_type = 'trip_id'
+        elif return_id_type != 'same_geom_and_stops_candidate' and return_id_type != 'same_geom_candidate':
+            raise Exception('return_id_type must be "all", "same_geom_and_stops_candidate", or "same_geom_candidate"')
+
+        sql = """select distinct ldb_trip_candidates.{return_id_type}
+            from geo_stop_times, geo_stops, ldb_trip_candidates
+            where ldb_trip_candidates.trip_id = geo_stop_times.trip_id
             and geo_stop_times.stop_id = geo_stops.stop_id
             and stop_sequence = 0
             and SIMILARITY(stop_name,:start_station) > :fuzzy_strength
-        """
+        """.format(return_id_type=return_id_type)
 
         with self.engine.connect() as connection:
             trips = pd.read_sql_query(text(sql), con=connection, params={"start_station": station_name, "fuzzy_strength": fuzzy_strength})
 
         return trips.values
 
-    def get_trips_to_station(self, station_name: str, fuzzy=True, fuzzy_strength=0.5) -> np.ndarray:
+    def get_trips_to_station(self, station_name: str, return_id_type='same_geom_and_stops_candidate', fuzzy=True, fuzzy_strength=0.5) -> np.ndarray:
         """
         Returns all trips that end at station "station_name". Performs fuzzy search if fuzzy = True.
 
@@ -109,14 +114,19 @@ class RailwayDatabase:
         if not fuzzy:
             fuzzy_strength = 1.
 
-        sql = """select distinct calc_n_stops.trip_id
-            from geo_trips, geo_stop_times, geo_stops, calc_n_stops
-            where geo_trips.trip_id = geo_stop_times.trip_id
+        if return_id_type == 'all':
+            return_id_type = 'trip_id'
+        elif return_id_type != 'same_geom_and_stops_candidate' and return_id_type != 'same_geom_candidate':
+            raise Exception('return_id_type must be "all", "same_geom_and_stops_candidate", or "same_geom_candidate"')
+
+        sql = """select distinct ldb_trip_candidates.{return_id_type}
+            from ldb_trip_candidates, geo_stop_times, geo_stops, calc_n_stops
+            where ldb_trip_candidates.trip_id = geo_stop_times.trip_id
             and geo_stop_times.stop_id = geo_stops.stop_id
-            and calc_n_stops.trip_id = geo_trips.trip_id
+            and calc_n_stops.trip_id = ldb_trip_candidates.trip_id
             and stop_sequence = n_stops
             and SIMILARITY(stop_name,:end_station) > :fuzzy_strength;
-        """
+        """.format(return_id_type=return_id_type)
 
         with self.engine.connect() as connection:
             trips = pd.read_sql_query(text(sql), con=connection,
@@ -124,22 +134,43 @@ class RailwayDatabase:
 
         return trips.values
 
-    def get_trips_from_to(self, from_station: Optional[str] = None, to_station: Optional[str] = None, fuzzy=True, fuzzy_strength=0.5):
+    def get_trips_from_to(self, from_station: Optional[str] = None, to_station: Optional[str] = None, return_id_type='same_geom_and_stops_candidate', fuzzy=True, fuzzy_strength=0.5, include_return_trips=False):
+        """
+
+        Parameters
+        ----------
+        from_station
+        to_station
+        return_id_type
+            either 'all', 'same_geom_candidate' or 'same_geom_and_stops_candidate'
+        fuzzy
+        fuzzy_strength
+
+        Returns
+        -------
+
+        """
 
         if from_station is None and to_station is None:
             raise Exception("Either start_station or end_station must be given!")
 
+        if include_return_trips:
+            from_station, to_station = to_station, from_station
+            return_trips = self.get_trips_from_to(from_station, to_station, return_id_type, fuzzy, fuzzy_strength, include_return_trips=False)
+        else:
+            return_trips = []
+
         if from_station is not None:
-            start_trips = self.get_trips_from_station(from_station, fuzzy=fuzzy, fuzzy_strength=fuzzy_strength)
+            start_trips = self.get_trips_from_station(from_station, return_id_type=return_id_type, fuzzy=fuzzy, fuzzy_strength=fuzzy_strength)
             if to_station is None:
-                return start_trips
+                return np.append(start_trips.flatten(), return_trips)
 
         if to_station is not None:
-            end_trips = self.get_trips_to_station(to_station, fuzzy=fuzzy, fuzzy_strength=fuzzy_strength)
+            end_trips = self.get_trips_to_station(to_station, return_id_type=return_id_type, fuzzy=fuzzy, fuzzy_strength=fuzzy_strength)
             if from_station is None:
-                return end_trips
+                return np.append(end_trips.flatten(), return_trips)
 
-        return np.intersect1d(start_trips, end_trips, assume_unique=True)
+        return np.append(np.intersect1d(start_trips, end_trips, assume_unique=True), return_trips)
 
     def get_same_geom_and_stops_candidate(self, trip_id):
 
@@ -498,6 +529,32 @@ class RailwayDatabase:
             in_elevation = con.execute(text(sql), {'trip_id': trip_id}).first()[0]
 
             return in_electrified and in_maxspeed and in_elevation
+
+    def get_trip(self, trip_id, crs=25832):
+        from .trip import Trip
+
+        trip_id = int(trip_id)
+
+        trip_geom = self.get_trip_shape(trip_id, crs)["geom"]
+
+        # get timetable data from database
+        timetable = self.get_trip_timetable(trip_id)
+
+        # convert the timetable arrival and start time to datetime instead of timedelta
+        date = "2021-01-01"
+        timetable["arrival_time"] = np.datetime64(date) + timetable.arrival_time
+        timetable["departure_time"] = np.datetime64(date) + timetable.departure_time
+
+        # check if generated trip is already stored in database
+        if self.contains_generated_trip(trip_id):
+            # if so get the data from database
+            brunnels = self.get_trip_brunnels(trip_id)
+            electrified = self.get_trip_electrified(trip_id)
+            maxspeed = self.get_trip_maxspeed(trip_id)
+            elevation_profile = self.get_trip_elevation_profile(trip_id)
+            return Trip(trip_id, electrified, maxspeed, brunnels, timetable, elevation_profile, trip_geom)
+        else:
+            raise Exception('Generated Trip not in Database! Use TripGenerator to generate the Trip.')
 
     def fix_osm(self, fix_geojson: str, prop: str, crs=25832):
         """

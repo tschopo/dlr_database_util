@@ -244,8 +244,6 @@ class Trip:
 
         """
 
-        prop = 'maxspeed'
-
         if prop == 'electrified':
             map_data = self.electrified
         elif prop == 'maxspeed':
@@ -371,13 +369,14 @@ class TripGenerator:
 
     def __init__(self, dem: DEM, db_connection: Engine, first_sample_distance: float = 10.0,
                  brunnel_filter_length: float = 10., interpolated: bool = True, ele_pipeline_kwargs=None,
-                 get_osm_kwargs=None):
+                 get_osm_kwargs=None, crs=25832):
         # better would be to store all parameters and not use kwargs
         # store generation parameters with trip so that reproducible
 
         self.railway_db = None
         self.engine = db_connection
         self.dem = dem
+        self.crs = crs
 
         if get_osm_kwargs is None:
             get_osm_kwargs = {}
@@ -414,9 +413,13 @@ class TripGenerator:
 
         # get shape from database
         if self.dem is None:
-            crs = 28532
+            crs = self.crs
         else:
             crs = self.dem.crs
+
+        # check if generated trip is already stored in database, if so return trip from database
+        if not recalculate and self.railway_db.contains_generated_trip(trip_id):
+            return self.railway_db.get_trip(trip_id, crs=crs)
 
         trip_geom = self.railway_db.get_trip_shape(trip_id, crs)["geom"]
 
@@ -428,19 +431,7 @@ class TripGenerator:
         timetable["arrival_time"] = np.datetime64(date) + timetable.arrival_time
         timetable["departure_time"] = np.datetime64(date) + timetable.departure_time
 
-        # check if generated trip is already stored in database
-        if not recalculate and self.railway_db.contains_generated_trip(trip_id):
-
-            # if so get the data from database
-            brunnels = self.railway_db.get_trip_brunnels(trip_id)
-            electrified = self.railway_db.get_trip_electrified(trip_id)
-            maxspeed = self.railway_db.get_trip_maxspeed(trip_id)
-            elevation_profile = self.railway_db.get_trip_elevation_profile(trip_id)
-            return Trip(trip_id, electrified, maxspeed, brunnels, timetable, elevation_profile, trip_geom)
-
-        # if not, calculate the data
-        else:
-            return self.generate_from_osm_db(trip_id, trip_geom, timetable)
+        return self.generate_from_osm_db(trip_id, trip_geom, timetable)
 
     def generate_from_simulation_results(self, results_file):
         # problem: how to get trip_geom
