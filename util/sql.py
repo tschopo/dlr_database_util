@@ -11,6 +11,7 @@ from ElevationSampler import ElevationProfile
 from geopandas import GeoDataFrame
 from pandas import DataFrame
 from sqlalchemy import text
+from datetime import datetime, timedelta
 
 from .tpt import elevation_pipeline
 from .osm import sql_get_osm_from_line, get_osm_prop
@@ -136,6 +137,7 @@ class RailwayDatabase:
 
     def get_trips_from_to(self, from_station: Optional[str] = None, to_station: Optional[str] = None, return_id_type='same_geom_and_stops_candidate', fuzzy=True, fuzzy_strength=0.5, include_return_trips=False):
         """
+        get trips that start at from_station and end at to_station.
 
         Parameters
         ----------
@@ -200,6 +202,32 @@ class RailwayDatabase:
             trip_id = rs[0]
 
             return trip_id
+
+    def get_trips_from_same_geom_and_stops_candidate(self, same_geom_and_stops_candidate):
+
+        sql = """select distinct trip_id
+                    from ldb_trip_candidates
+                    where same_geom_and_stops_candidate = :same_geom_and_stops_candidate
+                    order by trip_id;
+                """
+
+        with self.engine.connect() as connection:
+            trips = pd.read_sql_query(text(sql), con=connection,
+                                      params={"same_geom_and_stops_candidate": same_geom_and_stops_candidate})
+        return trips
+
+    def get_trips_from_same_geom_candidate(self, same_geom_candidate):
+
+        sql = """select distinct trip_id
+                    from ldb_trip_candidates
+                    where same_geom_and_stops_candidate = :same_geom_candidate
+                    order by trip_id;
+                """
+
+        with self.engine.connect() as connection:
+            trips = pd.read_sql_query(text(sql), con=connection,
+                                      params={"same_geom_candidate": same_geom_candidate})
+        return trips
 
     def get_trip_timetable(self, trip_id: int, min_stop_duration: float = 30.,
                            round_int: bool = True, filter=True) -> DataFrame:
@@ -593,3 +621,113 @@ class RailwayDatabase:
                     print("..." + str(osm_index))
                     print("set ", str(osm_row.way_id), " to ", fix_row[prop])
                     con.execute(text(sql), {'way_id': osm_row.way_id, 'prop_val': fix_row[prop]})
+
+    def calculate_n_fahrten_in_period(self, trip_id, period_start):
+        """
+        Calculates the number of times a trip drives in the 1 weak period from period_start.
+        Period must start on monday.
+
+        Parameters
+        ----------
+        trip_id
+        period_start
+
+        Returns
+        -------
+
+        """
+
+        weekdays = {0: "monday",
+                    1: "tuesday",
+                    2: "wednesday",
+                    3: "thursday",
+                    4: "friday",
+                    5: "saturday",
+                    6: "sunday"}
+
+        end_date = datetime.strptime(str(period_start), '%Y%m%d') + timedelta(days=6)
+        period_end = int(end_date.strftime('%Y%m%d'))
+        end_weekday = weekdays[end_date.weekday()]
+
+        start_date = datetime.strptime(str(period_start), '%Y%m%d')
+        start_weekday = weekdays[start_date.weekday()]
+
+        if start_weekday != "monday":
+            raise Exception("Period must start in monday!")
+
+        sql = """select * from geo_calendar, geo_trips
+            where geo_trips.service_id = geo_calendar.service_id
+            and geo_trips.trip_id = :trip_id
+            and start_date <= :period_end
+            and end_date >= :period_start;
+            """
+
+        n_fahrten = 0
+
+        with self.engine.connect() as conn:
+            calendar = pd.read_sql_query(text(sql), con=conn, params={'trip_id': trip_id, 'period_start': period_start,
+                                                                      'period_end': period_end})
+
+        covered_dates = []
+        if calendar.shape[0] > 0:
+
+            assert (calendar.shape[0] == 1)
+
+            calendar = calendar.iloc[0]
+
+            # get the dates where the trip is driving
+            if calendar.monday:
+                covered_dates.append(start_date)
+            if calendar.tuesday:
+                covered_dates.append(start_date + timedelta(days=1))
+            if calendar.wednesday:
+                covered_dates.append(start_date + timedelta(days=2))
+            if calendar.thursday:
+                covered_dates.append(start_date + timedelta(days=3))
+            if calendar.friday:
+                covered_dates.append(start_date + timedelta(days=4))
+            if calendar.saturday:
+                covered_dates.append(start_date + timedelta(days=5))
+            if calendar.sunday:
+                covered_dates.append(start_date + timedelta(days=6))
+
+            # case 2: trip starts later in the week
+            if calendar.start_date > period_start:
+                # get day of week of start_date
+                start_weekday = weekdays[datetime.strptime(str(int(calendar.start_date)), '%Y%m%d').weekday()]
+
+            # case 3. trip ends later in the week
+            if calendar.end_date < period_end:
+                # get day of week of start_date
+                end_weekday = weekdays[datetime.strptime(str(int(calendar.end_date)), '%Y%m%d').weekday()]
+
+            n_fahrten = np.sum(calendar[start_weekday:end_weekday])
+
+        # get excetptions
+        sql = """select * from geo_calendar_dates, geo_trips
+            where geo_trips.service_id = geo_calendar_dates.service_id
+            and geo_trips.trip_id = :trip_id
+            and date <= :period_end
+            and date >= :period_start;
+            """
+
+        with self.engine.connect() as conn:
+            calendar_dates = pd.read_sql_query(text(sql), con=conn,
+                                               params={'trip_id': trip_id, 'period_start': period_start,
+                                                       'period_end': period_end})
+
+        # assert that gtfs correct and only trip added if not drive on that date and only trip removed if drive on that
+        # date
+        for index, row in calendar_dates[calendar_dates.exception_type == 2].iterrows():
+            assert (datetime.strptime(str(int(row.date)), '%Y%m%d') in covered_dates)
+
+        for index, row in calendar_dates[calendar_dates.exception_type == 1].iterrows():
+            assert (datetime.strptime(str(int(row.date)), '%Y%m%d') not in covered_dates)
+
+        # all exceptions where trip removed --> decrement n_fahrten
+        n_fahrten -= np.sum(calendar_dates.exception_type == 2)
+
+        # all exceptions where trip added --> increment n_fahrten
+        n_fahrten += np.sum(calendar_dates.exception_type == 1)
+
+        return n_fahrten
