@@ -647,10 +647,12 @@ class RailwayDatabase:
 
         end_date = datetime.strptime(str(period_start), '%Y%m%d') + timedelta(days=6)
         period_end = int(end_date.strftime('%Y%m%d'))
-        end_weekday = weekdays[end_date.weekday()]
+        end_weekday_index = end_date.weekday()
+        end_weekday = weekdays[end_weekday_index]
 
         start_date = datetime.strptime(str(period_start), '%Y%m%d')
-        start_weekday = weekdays[start_date.weekday()]
+        start_weekday_index = start_date.weekday()
+        start_weekday = weekdays[start_weekday_index]
 
         if start_weekday != "monday":
             raise Exception("Period must start in monday!")
@@ -675,31 +677,33 @@ class RailwayDatabase:
 
             calendar = calendar.iloc[0]
 
-            # get the dates where the trip is driving
-            if calendar.monday:
-                covered_dates.append(start_date)
-            if calendar.tuesday:
-                covered_dates.append(start_date + timedelta(days=1))
-            if calendar.wednesday:
-                covered_dates.append(start_date + timedelta(days=2))
-            if calendar.thursday:
-                covered_dates.append(start_date + timedelta(days=3))
-            if calendar.friday:
-                covered_dates.append(start_date + timedelta(days=4))
-            if calendar.saturday:
-                covered_dates.append(start_date + timedelta(days=5))
-            if calendar.sunday:
-                covered_dates.append(start_date + timedelta(days=6))
-
             # case 2: trip starts later in the week
             if calendar.start_date > period_start:
                 # get day of week of start_date
-                start_weekday = weekdays[datetime.strptime(str(int(calendar.start_date)), '%Y%m%d').weekday()]
+                start_weekday_index = datetime.strptime(str(int(calendar.start_date)), '%Y%m%d').weekday()
+                start_weekday = weekdays[start_weekday_index]
 
             # case 3. trip ends later in the week
             if calendar.end_date < period_end:
                 # get day of week of start_date
-                end_weekday = weekdays[datetime.strptime(str(int(calendar.end_date)), '%Y%m%d').weekday()]
+                end_weekday_index = datetime.strptime(str(int(calendar.end_date)), '%Y%m%d').weekday()
+                end_weekday = weekdays[end_weekday_index]
+
+            # get the dates where the trip is driving
+            if calendar.monday and start_weekday_index == 0:
+                covered_dates.append(start_date)
+            if calendar.tuesday and start_weekday_index <= 1 and end_weekday_index >= 1:
+                covered_dates.append(start_date + timedelta(days=1))
+            if calendar.wednesday and start_weekday_index <= 2 and end_weekday_index >= 2:
+                covered_dates.append(start_date + timedelta(days=2))
+            if calendar.thursday and start_weekday_index <= 3 and end_weekday_index >= 3:
+                covered_dates.append(start_date + timedelta(days=3))
+            if calendar.friday and start_weekday_index <= 4 and end_weekday_index >= 4:
+                covered_dates.append(start_date + timedelta(days=4))
+            if calendar.saturday and start_weekday_index <= 5 and end_weekday_index >= 5:
+                covered_dates.append(start_date + timedelta(days=5))
+            if calendar.sunday and start_weekday_index <= 6 and end_weekday_index >= 6:
+                covered_dates.append(start_date + timedelta(days=6))
 
             n_fahrten = np.sum(calendar[start_weekday:end_weekday])
 
@@ -719,10 +723,12 @@ class RailwayDatabase:
         # assert that gtfs correct and only trip added if not drive on that date and only trip removed if drive on that
         # date
         for index, row in calendar_dates[calendar_dates.exception_type == 2].iterrows():
-            assert (datetime.strptime(str(int(row.date)), '%Y%m%d') in covered_dates)
+            if not (datetime.strptime(str(int(row.date)), '%Y%m%d') in covered_dates):
+                raise Exception("Error in GTFS data, inconsistent calendar and calendar dates")
 
         for index, row in calendar_dates[calendar_dates.exception_type == 1].iterrows():
-            assert (datetime.strptime(str(int(row.date)), '%Y%m%d') not in covered_dates)
+            if not (datetime.strptime(str(int(row.date)), '%Y%m%d') not in covered_dates):
+                raise Exception("Error in GTFS data, inconsistent calendar and calendar dates")
 
         # all exceptions where trip removed --> decrement n_fahrten
         n_fahrten -= np.sum(calendar_dates.exception_type == 2)
