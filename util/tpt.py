@@ -541,6 +541,70 @@ def write_tpt_input_sheet(template_file: str, trip_title: str, timetable: DataFr
     return basename
 
 
+def read_tpt_input_sheet(file) -> Tuple[DataFrame, DataFrame, DataFrame, DataFrame]:
+    """
+    Read TPT input file. Return electrified, maxspeed, timetable, elevation dataframes.
+
+    Parameters
+    ----------
+    file
+
+    Returns
+    -------
+    electrified, maxspeed, timetable, elevation dataframes
+
+    """
+    wb = load_workbook(filename=file)
+
+    ws = wb['driving']
+
+    # timetable
+    start_row, end_row = _get_table_row_boundaries(ws, "]stations_middle_kp(m)_(S/P)_t(s)_name(text)")
+    timetable = pd.read_excel(file, sheet_name='driving', skiprows=start_row, header=None,
+                              names=['dist', 'stop_duration', 'stop_name', 'driving_time'],
+                              nrows=end_row - start_row - 1, usecols='A,C:E')
+    timetable['arrival_time'] = pd.to_timedelta((timetable.driving_time + timetable.stop_duration).cumsum(),
+                                                unit='s').shift(1)
+    timetable['departure_time'] = timetable.arrival_time + pd.to_timedelta(timetable.stop_duration, unit='s')
+    timetable.at[0, 'departure_time'] = pd.to_timedelta(0, unit='s')
+    timetable.at[0, 'arrival_time'] = pd.to_timedelta(0, unit='s')
+    timetable['departure_time'] = pd.Timestamp(year=2021, month=1, day=1, hour=0, minute=0, second=0, microsecond=0,
+                                               nanosecond=0) + timetable.departure_time
+    timetable['arrival_time'] = pd.Timestamp(year=2021, month=1, day=1, hour=0, minute=0, second=0, microsecond=0,
+                                             nanosecond=0) + timetable.arrival_time
+    timetable = timetable[['dist', 'stop_name', 'stop_duration', 'driving_time', 'arrival_time', 'departure_time']]
+
+    # maxspeed
+    start_row, end_row = _get_table_row_boundaries(ws, "]max_speeds_head_and_tail_kp(m)_v(km/h)")
+    maxspeed = pd.read_excel(file, sheet_name='driving', skiprows=start_row, header=None,
+                             names=['start_dist', 'maxspeed'], nrows=end_row - start_row - 1, usecols='A,B')
+
+    ws = wb['line']
+
+    # Electrified
+    start_row, end_row = _get_table_row_boundaries(ws, "]electrification_kp(m)_binary_link(0,1)")
+    electrified = pd.read_excel(file, sheet_name='line', skiprows=start_row, header=None,
+                                names=['start_dist', 'electrified'], nrows=end_row - start_row - 1, usecols='A,B')
+
+    # Elevation
+    start_row, end_row = _get_table_row_boundaries(ws, "]gradients_kp(m)_g(o/oo)_link(0,1)")
+    elevation = pd.read_excel(file, sheet_name='line', skiprows=start_row, header=None, names=['distance', 'elevation'],
+                              nrows=end_row - start_row - 1, usecols='A,B')
+    elevation['elevation'] = (elevation.elevation / 10).cumsum()
+    elevation['elevation'] += elevation.elevation.abs().max()
+    trip_length = elevation.distance.iloc[-1]
+
+    maxspeed['end_dist'] = maxspeed.start_dist.shift(-1)
+    maxspeed.iloc[-1, 2] = trip_length
+    maxspeed = maxspeed[['maxspeed', 'start_dist', 'end_dist']]
+
+    electrified['end_dist'] = electrified.start_dist.shift(-1)
+    electrified.iloc[-1, 2] = trip_length
+    electrified = electrified[['electrified', 'start_dist', 'end_dist']]
+
+    return electrified, maxspeed, timetable, elevation
+
+
 def _get_table_row_boundaries(ws, begin_token: str, end_token: str = "]end"):
     start_row = None
     end_row = None
@@ -653,3 +717,4 @@ def resample_simulation_results(tpt_df, t: Optional[int] = 10):
         resampled[["electrification"]] = resample[["electrification"]].median()
 
     return resampled
+

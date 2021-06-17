@@ -367,9 +367,23 @@ class Trip:
 
 class TripGenerator:
 
-    def __init__(self, dem: DEM, db_connection: Engine, first_sample_distance: float = 10.0,
+    def __init__(self, dem: Optional[DEM] = None, db_connection: Optional[Engine] = None, first_sample_distance: float = 10.0,
                  brunnel_filter_length: float = 10., interpolated: bool = True, ele_pipeline_kwargs=None,
                  get_osm_kwargs=None, crs=25832):
+        """
+        Generate Trip Objects from different Data Sources.
+
+        Parameters
+        ----------
+        dem
+        db_connection
+        first_sample_distance
+        brunnel_filter_length
+        interpolated
+        ele_pipeline_kwargs
+        get_osm_kwargs
+        crs
+        """
         # better would be to store all parameters and not use kwargs
         # store generation parameters with trip so that reproducible
 
@@ -406,6 +420,9 @@ class TripGenerator:
 
         """
 
+        if self.engine is None:
+            raise Exception("self.engine is None! Set the sqlalchemy Engine first!")
+
         if self.railway_db is None:
             self.railway_db = RailwayDatabase(self.engine)
 
@@ -437,7 +454,24 @@ class TripGenerator:
         # problem: how to get trip_geom
         raise NotImplementedError
 
+    def generate_from_tpt_inputsheet(self, inputsheet):
+        # problem: how to get trip_geom
+        raise NotImplementedError
+
     def generate_from_osm_db(self, trip_id: int, trip_geom: GeoSeries, timetable: DataFrame):
+        """
+        Use this if only OSM railway table is present. Calculates the Trip properties with the given trip_geom.
+
+        Parameters
+        ----------
+        trip_id
+        trip_geom
+        timetable
+
+        Returns
+        -------
+
+        """
         osm_data = sql_get_osm_from_line(trip_geom, self.engine, **self.get_osm_kwargs)
 
         self.current_osm_data = osm_data

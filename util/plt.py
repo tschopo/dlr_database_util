@@ -8,9 +8,12 @@ import altair as alt
 import folium
 import numpy as np
 import pandas as pd
+from altair import Chart
 from folium import Map
 from geopandas import GeoDataFrame
 from pandas import DataFrame
+
+from util import read_tpt_input_sheet, read_tpt_output_sheet
 
 
 def plot_osm(osm_data: GeoDataFrame, prop: Optional[str] = None) -> Map:
@@ -466,3 +469,39 @@ def plot_power(power: DataFrame, pos_color='#9ecae1', neg_color='#d62728', hide_
         color=alt.Color('negative:N', legend=None, scale=alt.Scale(domain=[False, True], range=[neg_color, pos_color]))
     )
     return chart_power
+
+
+def plot_from_input_sheet(input_sheet: str, output_sheet: Optional[str] = None, title: Optional[str] = None) -> Chart:
+    """
+    Plots the data from inputsheet and optionally simulation results. Elevation starts at 0.
+
+    Parameters
+    ----------
+    input_sheet : str
+        path to the tpt input xlsx
+    output_sheet : str
+        optional. path to the results_per_second.csv of the trip. if given adds the power and velocity plots to the
+        chart.
+    title : str
+        optional. the title of the chart
+
+    Returns
+    -------
+        chart
+
+    """
+
+    electrified, maxspeed, timetable, elevation = read_tpt_input_sheet(input_sheet)
+
+    power = None
+    velocity = None
+    if output_sheet is not None:
+        tpt_df = read_tpt_output_sheet(output_sheet)
+        power = tpt_df[['distance', 'power']].copy()
+        velocity = tpt_df[['distance', 'velocity']].copy()
+
+    if title is None:
+        title = input_sheet.split('/')[-1].split('.')[-2]
+
+    return plot_trip_props(maxspeed, electrified, None, elevation, title, elevation.distance.iloc[-1],
+                           velocity=velocity, power=power, timetable=timetable)
