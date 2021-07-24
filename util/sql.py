@@ -204,6 +204,17 @@ class RailwayDatabase:
             return trip_id
 
     def get_trips_from_same_geom_and_stops_candidate(self, same_geom_and_stops_candidate):
+        """
+        Get list of trips that belong to the given same_geom_and_stops_candidate.
+
+        Parameters
+        ----------
+        same_geom_and_stops_candidate
+
+        Returns
+        -------
+
+        """
 
         sql = """select distinct trip_id
                     from ldb_trip_candidates

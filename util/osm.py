@@ -964,6 +964,7 @@ def spatial_median(vals, lengths):
 def osm_railways_to_psql(geofabrik_pbf_folder: str, geofabrik_pbf: str, database="liniendatenbank", user="postgres",
                          password=None, osmium_filter=True):
     """
+    load osm railway data into database
 
     Parameters
     ----------
