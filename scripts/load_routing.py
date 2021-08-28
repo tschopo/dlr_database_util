@@ -7,7 +7,7 @@ from scripts.database_config import engine_config
 
 if __name__ == '__main__':
 
-    n_threads = 1
+    n_threads = 4
 
     engine = create_engine(engine_config)
     railway_db = util.RailwayDatabase(engine)
@@ -28,7 +28,6 @@ if __name__ == '__main__':
     same_geom_and_stops_candidates = pd.read_sql_query(text(sql), con=engine)
     same_geom_and_stops_candidates = same_geom_and_stops_candidates.sort_values(by='same_geom_and_stops_candidate',
                                                                                 ignore_index=True).same_geom_and_stops_candidate.values
-
     def exception_wrapper(trip_id):
         print(trip_id)
         try:

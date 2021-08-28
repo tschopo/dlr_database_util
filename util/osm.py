@@ -145,6 +145,7 @@ def sql_get_osm_from_line(linestring: Union[LineString, GeoSeries], engine: Engi
     # print(osm_data.crs.to_epsg())
     # print(trip_geom.crs.to_epsg())
 
+    # add start and end  point from linestring geometry to each row
     osm_data['start_point'] = osm_data.apply(lambda r: Point(r['geom'].coords[0]), axis=1)
     osm_data['end_point'] = osm_data.apply(lambda r: Point(r['geom'].coords[-1]), axis=1)
 
@@ -236,6 +237,20 @@ def get_osm_in_buffer(trip_geom: Union[GeoSeries, GeoDataFrame], osm_data: GeoDa
 
 def combine_osm_pipeline(osm_data: GeoDataFrame, trip_geom: GeoSeries,
                          filter_difference_length: float = 1., search_buffer: float = 8.) -> GeoDataFrame:
+    """
+
+
+    Parameters
+    ----------
+    osm_data
+    trip_geom
+    filter_difference_length
+    search_buffer
+
+    Returns
+    -------
+
+    """
     osm_buf_1 = get_osm_in_buffer(trip_geom, osm_data, 1, method="strict")
     osm_buf_2 = get_osm_in_buffer(trip_geom, osm_data, 2, method="strict")
     osm_buf_3 = get_osm_in_buffer(trip_geom, osm_data, 3, method="strict")
@@ -282,8 +297,8 @@ def calc_distances(osm_data: GeoDataFrame, trip_geom: GeoSeries, geom_col: str =
 
 def add_osm_to_geom(osm_data: GeoDataFrame, trip_geom: GeoSeries):
     """
-    Aligns the geoms so they all point in same direction.
     Adds the osm properties to the trip_geom.
+    Aligns the geoms so they all point in same direction.
     Adds start_point, end_point, start_point_distance, end_point_distance columns.
     Sorts the data after start_point.
 
@@ -300,6 +315,7 @@ def add_osm_to_geom(osm_data: GeoDataFrame, trip_geom: GeoSeries):
 
     # make linestrings all same direction
     # flip if wrong dir
+    # wrong dir if end point of linestring is closer to start then endpoint
     osm_data["geom"] = osm_data.apply(
         lambda r: LineString(list(r['geom'].coords)[::-1]) if r['start_point_distance'] > r[
             'end_point_distance'] else r['geom'], axis=1)
@@ -361,7 +377,6 @@ def add_osm_to_geom(osm_data: GeoDataFrame, trip_geom: GeoSeries):
 
     # split trip_geom at every start and endpoint in osm_data
     # for each split trip segment get all osm data that overlaps and assign values from these osm segments
-
     cut_distances = np.append(osm_data.start_point_distance.values, osm_data.end_point_distance.values)
 
     linestring = trip_geom.iloc[0]

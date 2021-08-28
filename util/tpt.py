@@ -519,7 +519,7 @@ def write_tpt_input_sheet(template_file: str, trip_title: str, timetable: DataFr
     electrified = electrified[["start_dist", "electrified"]]
     electrified.to_excel(writer, "line", startrow=start_row - 1, header=False, index=False)
 
-    #
+    #grplot_kwargsadienten
     #  inclination
     start_row, end_row = _get_table_row_boundaries(ws, "]gradients_kp(m)_g(o/oo)_link(0,1)")
     start_row += 1
