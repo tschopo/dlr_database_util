@@ -1,0 +1,1085 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>util package &mdash; Util – DLR Database Interface v0.3 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Util – DLR Database Interface
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">util package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-util.osm">util.osm module</a></li>
+<li><a class="reference internal" href="#module-util.plt">util.plt module</a></li>
+<li><a class="reference internal" href="#module-util.sql">util.sql module</a></li>
+<li><a class="reference internal" href="#module-util.tpt">util.tpt module</a></li>
+<li><a class="reference internal" href="#module-util.trip">util.trip module</a></li>
+<li><a class="reference internal" href="#module-util">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Util – DLR Database Interface</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>util package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/util.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="util-package">
+<h1>util package<a class="headerlink" href="#util-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-util.osm">
+<span id="util-osm-module"></span><h2>util.osm module<a class="headerlink" href="#module-util.osm" title="Permalink to this headline">¶</a></h2>
+<p>Functions that interface with the OSM rail database as defined by the import script</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="util.osm.add_osm_to_geom">
+<span class="sig-prename descclassname"><span class="pre">util.osm.</span></span><span class="sig-name descname"><span class="pre">add_osm_to_geom</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">osm_data</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">geopandas.geodataframe.GeoDataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_geom</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">geopandas.geoseries.GeoSeries</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.osm.add_osm_to_geom" title="Permalink to this definition">¶</a></dt>
+<dd><p>Aligns the geoms so they all point in same direction.
+Adds the osm properties to the trip_geom.
+Adds start_point, end_point, start_point_distance, end_point_distance columns.
+Sorts the data after start_point.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>osm_data</strong> – </p></li>
+<li><p><strong>trip_geom</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.osm.calc_distances">
+<span class="sig-prename descclassname"><span class="pre">util.osm.</span></span><span class="sig-name descname"><span class="pre">calc_distances</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">osm_data</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">geopandas.geodataframe.GeoDataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_geom</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">geopandas.geoseries.GeoSeries</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geom_col</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'geom'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">geopandas.geodataframe.GeoDataFrame</span></span></span><a class="headerlink" href="#util.osm.calc_distances" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the Distance of each feature in osm_data along the trip.
+Adds start_point, end_point, start_point_distance, end_point_distance columns</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>osm_data</strong> – </p></li>
+<li><p><strong>trip_geom</strong> – </p></li>
+<li><p><strong>geom_col</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.osm.combine_osm_pipeline">
+<span class="sig-prename descclassname"><span class="pre">util.osm.</span></span><span class="sig-name descname"><span class="pre">combine_osm_pipeline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">osm_data</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">geopandas.geodataframe.GeoDataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_geom</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">geopandas.geoseries.GeoSeries</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_difference_length</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">search_buffer</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">8.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">geopandas.geodataframe.GeoDataFrame</span></span></span><a class="headerlink" href="#util.osm.combine_osm_pipeline" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.osm.get_electrified_at_dist">
+<span class="sig-prename descclassname"><span class="pre">util.osm.</span></span><span class="sig-name descname"><span class="pre">get_electrified_at_dist</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">electrified</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#util.osm.get_electrified_at_dist" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>electrified</strong> – dataframe with start_dist, end_dist and electrified columns</p></li>
+<li><p><strong>dist</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.osm.get_elevation_at_dist">
+<span class="sig-prename descclassname"><span class="pre">util.osm.</span></span><span class="sig-name descname"><span class="pre">get_elevation_at_dist</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">elevation</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="headerlink" href="#util.osm.get_elevation_at_dist" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>elevation</strong> – dataframe with distance and elevation columns</p></li>
+<li><p><strong>dist</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.osm.get_maxspeed_at_dist">
+<span class="sig-prename descclassname"><span class="pre">util.osm.</span></span><span class="sig-name descname"><span class="pre">get_maxspeed_at_dist</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">maxspeed</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#util.osm.get_maxspeed_at_dist" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>maxspeed</strong> – dataframe with start_dist, end_dist and maxspeed columns</p></li>
+<li><p><strong>dist</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.osm.get_osm_in_buffer">
+<span class="sig-prename descclassname"><span class="pre">util.osm.</span></span><span class="sig-name descname"><span class="pre">get_osm_in_buffer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_geom</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">geopandas.geoseries.GeoSeries</span><span class="p"><span class="pre">,</span> </span><span class="pre">geopandas.geodataframe.GeoDataFrame</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">osm_data</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">geopandas.geodataframe.GeoDataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'strict'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">geopandas.geodataframe.GeoDataFrame</span></span></span><a class="headerlink" href="#util.osm.get_osm_in_buffer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns OSM data that lies in the buffer_size</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>trip_geom</strong> – </p></li>
+<li><p><strong>osm_data</strong> – </p></li>
+<li><p><strong>buffer_size</strong> – </p></li>
+<li><p><strong>method</strong> – ‘strict’, ‘both’ or ‘either’
+strict: the whole geometry needs to be in buffer
+both: start and end point of geometry need to be in buffer
+either: start or end point need to be in buffer</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.osm.get_osm_prop">
+<span class="sig-prename descclassname"><span class="pre">util.osm.</span></span><span class="sig-name descname"><span class="pre">get_osm_prop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">osm_data</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">geopandas.geodataframe.GeoDataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prop</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">brunnel_filter_length</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">round_int</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_length</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">150.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxspeed_if_all_null</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">120.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxspeed_null_segment_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxspeed_null_max_frac</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxspeed_min_if_null</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">60.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_length</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">harmonize_end_dists</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">set_unknown_electrified_to_no</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tpt</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.osm.get_osm_prop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get dataframe of start_dist, end_dists, property value, for a given osm property. Merges adjacent sections with same
+value.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>osm_data</strong> (<em>GeoDataFrame</em>) – <p>Columns start_point_distance, end_point_distance, prop [brunnel, electrified, maxspeed]
+brunnel: ‘yes’|’no’, electrified: ‘yes’|’no’|’unknown’, maxspeed: int|np.nan</p>
+<p>unknown and nan values are discarded.</p>
+<p>For electrified and maxspeed the last end_point_distance must be the trip length.</p>
+</p></li>
+<li><p><strong>prop</strong> (<em>str</em>) – The OSM property. Accepted Values are “brunnel”, “electrified” or “maxspeed”</p></li>
+<li><p><strong>brunnel_filter_length</strong> – ignores brunnels that are smaller than this length</p></li>
+<li><p><strong>round_int</strong> (<em>bool</em>) – return ints not floats for start_dist, end_dist, maxspeed</p></li>
+<li><p><strong>train_length</strong> (<em>float</em><em> or </em><em>None</em>) – The minimum length of maxspeed spikes. Should be larger than train length.</p></li>
+<li><p><strong>maxspeed_if_all_null</strong> (<em>float</em>) – <dl class="simple">
+<dt>The maxspeed that is set if there are 0 maxspeeds present or for if all nullsegments lengths sum up</dt><dd><p>to more than maxspeed_null_max_frac * trip_length</p>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>maxspeed_null_segment_length</strong> (<em>float</em>) – For Segments of nan values longer than this, the maxspeed is set to the median of the trip maxspeed.</p></li>
+<li><p><strong>maxspeed_null_max_frac</strong> (<em>float</em>) – between 0 and 1. if the null segment lengths sum up to a length larger than maxspeed_null_max_frac *
+trip_length, then the null segment ist set to maxspeed_if_all_null</p></li>
+<li><p><strong>maxspeed_min_if_null</strong> (<em>float</em>) – For nan segments: if median of trip is below this value, set the nan segment to maxspeed_if_all_null</p></li>
+<li><p><strong>trip_length</strong> (<em>float</em><em> or </em><em>None</em>) – Set the last end_dist to trip_length, so that align with trip, only for maxspeed an electrified</p></li>
+<li><p><strong>harmonize_end_dists</strong> (<em>bool</em>) – if true, sets the end_dists to the start dist of next row, so that there are no gaps, only for maxspeed and
+electrified</p></li>
+<li><p><strong>set_unknown_electrified_to_no</strong> (<em>bool</em>) – if false, then unknown electrified are ignored, meaning that always the previous known value is used until
+next known value. if true then unknown segments are set to “no”</p></li>
+<li><p><strong>tpt</strong> (<em>bool</em>) – set true if using the outputs for tpt simulator. fixes tpt bugs</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>DataFrame with property values, start_dist and end_dist. If brunnel then also length.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.osm.get_trip_where_no_osm">
+<span class="sig-prename descclassname"><span class="pre">util.osm.</span></span><span class="sig-name descname"><span class="pre">get_trip_where_no_osm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_geom</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">geopandas.geoseries.GeoSeries</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">osm_data</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">geopandas.geodataframe.GeoDataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">buffer_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">8.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_difference_length</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">geopandas.geoseries.GeoSeries</span></span></span><a class="headerlink" href="#util.osm.get_trip_where_no_osm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the segments of trip_geom where there is no osm data.
+For a given trip and incomplete OSM data (meaning that the intersection of osm data and trip does not return the
+whole trip), returns the segments of the trip where there is no OSM data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>trip_geom</strong> – </p></li>
+<li><p><strong>osm_data</strong> – </p></li>
+<li><p><strong>buffer_size</strong> – </p></li>
+<li><p><strong>filter_difference_length</strong> – filter osm segments smaller than this length</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.osm.osm_railways_to_psql">
+<span class="sig-prename descclassname"><span class="pre">util.osm.</span></span><span class="sig-name descname"><span class="pre">osm_railways_to_psql</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">geofabrik_pbf_folder</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geofabrik_pbf</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">database</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'liniendatenbank'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'postgres'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">password</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">osmium_filter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.osm.osm_railways_to_psql" title="Permalink to this definition">¶</a></dt>
+<dd><p>load osm railway data into database</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.osm.resample_prop">
+<span class="sig-prename descclassname"><span class="pre">util.osm.</span></span><span class="sig-name descname"><span class="pre">resample_prop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prop_df</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distances</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prop</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pandas.core.frame.DataFrame</span></span></span><a class="headerlink" href="#util.osm.resample_prop" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>prop_df</strong> – either elevation dataframe with “elevation” and “distance” or maxspeed dataframe with “maxspeed”, “start_dist”,
+“end_dist” or electrified dataframe with “electrified”, “start_dist”, “end_dist”</p></li>
+<li><p><strong>distances</strong> – </p></li>
+<li><p><strong>prop</strong> – either “elevation”, “maxpeed” or “electrified”</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.osm.spatial_median">
+<span class="sig-prename descclassname"><span class="pre">util.osm.</span></span><span class="sig-name descname"><span class="pre">spatial_median</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vals</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lengths</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.osm.spatial_median" title="Permalink to this definition">¶</a></dt>
+<dd><p>calculate the weighted median. repeat each value by length.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>vals</strong> (<em>List</em>) – The values</p></li>
+<li><p><strong>lengths</strong> (<em>List</em>) – The lengths</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.osm.spatial_median_osm">
+<span class="sig-prename descclassname"><span class="pre">util.osm.</span></span><span class="sig-name descname"><span class="pre">spatial_median_osm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">osm_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prop</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'maxspeed'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.osm.spatial_median_osm" title="Permalink to this definition">¶</a></dt>
+<dd><p>calculate the weighted median. repeat each value by length.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.osm.sql_get_osm_from_line">
+<span class="sig-prename descclassname"><span class="pre">util.osm.</span></span><span class="sig-name descname"><span class="pre">sql_get_osm_from_line</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">linestring</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">shapely.geometry.linestring.LineString</span><span class="p"><span class="pre">,</span> </span><span class="pre">geopandas.geoseries.GeoSeries</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">engine</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">sqlalchemy.engine.base.Engine</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">get_osm_srid</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">25832</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">get_osm_buffer</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter_difference_length</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">schema</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'public'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">table</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'osm_railways'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geom_column</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'geom'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">geopandas.geodataframe.GeoDataFrame</span></span></span><a class="headerlink" href="#util.osm.sql_get_osm_from_line" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get osm data for a LineString. Raises an Exception if no osm data is found.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>engine</strong> (<em>SqlAlchemy Engine</em>) – </p></li>
+<li><p><strong>linestring</strong> (<em>shapely LineString</em><em> or </em><em>GeoSeries</em>) – </p></li>
+<li><p><strong>crs</strong> (<em>shapely crs string</em><em> or </em><em>object</em>) – the crs of the LineString, if linestring is a LineString. If linestring is a GeoSeries the CRS of the GeoSeries
+is taken</p></li>
+<li><p><strong>get_osm_srid</strong> (<em>int</em>) – The srid which is used internally to get the osm data (the linestring and the osm geometries are converted to
+this srid in the sql query)</p></li>
+<li><p><strong>get_osm_buffer</strong> (<em>float</em><em>, </em><em>default = 10</em><em>(</em><em>m</em><em>)</em>) – Buffer used to get all osm data around the trip that lies in the buffer</p></li>
+<li><p><strong>filter_difference_length</strong> (<em>float</em><em>, </em><em>default = 1</em>) – Filter segments smaller than this length from difference of osm and trip</p></li>
+<li><p><strong>schema</strong> – </p></li>
+<li><p><strong>table</strong> – </p></li>
+<li><p><strong>geom_column</strong> – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>geopandas GeoDataFrame</em></p></li>
+<li><p><em>in crs of the linestring</em></p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.osm.sql_get_srid">
+<span class="sig-prename descclassname"><span class="pre">util.osm.</span></span><span class="sig-name descname"><span class="pre">sql_get_srid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">engine</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">sqlalchemy.engine.base.Engine</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">schema</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'public'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">table</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'osm_railways'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">geom_column</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'geom'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#util.osm.sql_get_srid" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-util.plt">
+<span id="util-plt-module"></span><h2>util.plt module<a class="headerlink" href="#module-util.plt" title="Permalink to this headline">¶</a></h2>
+<p>Functions for plotting trip data</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="util.plt.plot_electrified">
+<span class="sig-prename descclassname"><span class="pre">util.plt.</span></span><span class="sig-name descname"><span class="pre">plot_electrified</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">electrified</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_length</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">electrified_color</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">not_electrified_color</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hide_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timetable</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">pandas.core.frame.DataFrame</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.plt.plot_electrified" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.plt.plot_elevation">
+<span class="sig-prename descclassname"><span class="pre">util.plt.</span></span><span class="sig-name descname"><span class="pre">plot_elevation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">elevation_background</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elevation_smoothed</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_length</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elevation_overshoot</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hide_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">altair.vegalite.v4.api.Chart</span></span></span><a class="headerlink" href="#util.plt.plot_elevation" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>elevation_background</strong> (<em>DataFrame</em>) – columns ‘distance’, ‘elevation’</p></li>
+<li><p><strong>elevation_smoothed</strong> (<em>DataFrame</em>) – columns ‘distance’, ‘elevation’</p></li>
+<li><p><strong>color</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.plt.plot_from_input_sheet">
+<span class="sig-prename descclassname"><span class="pre">util.plt.</span></span><span class="sig-name descname"><span class="pre">plot_from_input_sheet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_sheet</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_sheet</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">altair.vegalite.v4.api.Chart</span></span></span><a class="headerlink" href="#util.plt.plot_from_input_sheet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots the data from inputsheet and optionally simulation results. Elevation starts at 0.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_sheet</strong> (<em>str</em>) – path to the tpt input xlsx</p></li>
+<li><p><strong>output_sheet</strong> (<em>str</em>) – optional. path to the results_per_second.csv of the trip. if given adds the power and velocity plots to the
+chart.</p></li>
+<li><p><strong>title</strong> (<em>str</em>) – optional. the title of the chart</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>chart</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.plt.plot_maxspeeds">
+<span class="sig-prename descclassname"><span class="pre">util.plt.</span></span><span class="sig-name descname"><span class="pre">plot_maxspeeds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">maxspeed</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">velocity</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">pandas.core.frame.DataFrame</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x_time</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_time_mapping</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">pandas.core.frame.DataFrame</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hide_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x_top</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">altair.vegalite.v4.api.Chart</span></span></span><a class="headerlink" href="#util.plt.plot_maxspeeds" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>maxspeed</strong> (<em>DataFrame</em>) – cols start_dist, maxspeed must be present</p></li>
+<li><p><strong>color</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.plt.plot_osm">
+<span class="sig-prename descclassname"><span class="pre">util.plt.</span></span><span class="sig-name descname"><span class="pre">plot_osm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">osm_data</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">geopandas.geodataframe.GeoDataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prop</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">folium.folium.Map</span></span></span><a class="headerlink" href="#util.plt.plot_osm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot osm data on map.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>osm_data</strong> – </p></li>
+<li><p><strong>prop</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.plt.plot_power">
+<span class="sig-prename descclassname"><span class="pre">util.plt.</span></span><span class="sig-name descname"><span class="pre">plot_power</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">power</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pos_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'#9ecae1'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">neg_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'#d62728'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hide_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.plt.plot_power" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.plt.plot_trip_props">
+<span class="sig-prename descclassname"><span class="pre">util.plt.</span></span><span class="sig-name descname"><span class="pre">plot_trip_props</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">maxspeed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">electrified</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elevation_background</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elevation_smoothed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_title</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_length</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">velocity</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">pandas.core.frame.DataFrame</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">power</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">pandas.core.frame.DataFrame</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timetable</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">pandas.core.frame.DataFrame</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x_time</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color_monotone</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elevation_plot_height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elevation_overshoot</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interactive</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.plt.plot_trip_props" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-util.sql">
+<span id="util-sql-module"></span><h2>util.sql module<a class="headerlink" href="#module-util.sql" title="Permalink to this headline">¶</a></h2>
+<p>Functions that interface with the dlr “liniendatenbank” database</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">util.sql.</span></span><span class="sig-name descname"><span class="pre">RailwayDatabase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">engine</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.calculate_n_fahrten_in_period">
+<span class="sig-name descname"><span class="pre">calculate_n_fahrten_in_period</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">period_start</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.calculate_n_fahrten_in_period" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the number of times a trip drives in the 1 weak period from period_start.
+Period must start on monday.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>trip_id</strong> – </p></li>
+<li><p><strong>period_start</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.contains_generated_trip">
+<span class="sig-name descname"><span class="pre">contains_generated_trip</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.contains_generated_trip" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if the data for the trip is stored in the database. Checks if data present in ldb_electrified,
+ldb_elevation and ldb_maxspeed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>trip_id</strong> – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.engine">
+<span class="sig-name descname"><span class="pre">engine</span></span><a class="headerlink" href="#util.sql.RailwayDatabase.engine" title="Permalink to this definition">¶</a></dt>
+<dd><p>CREATE
+EXTENSION if not exists
+pg_trgm</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.fix_osm">
+<span class="sig-name descname"><span class="pre">fix_osm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fix_geojson</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prop</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">25832</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.fix_osm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fix osm data (in osm_railways) from geojson. The geojson contains the correct data. All osm features that intersect the geojson
+are set to the prop in the geojson.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fix_geojson</strong> (<em>str</em>) – path to the geojson file</p></li>
+<li><p><strong>prop</strong> (<em>str</em>) – the key in the geojson / osm database that is fixed</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_same_geom_and_stops_candidate">
+<span class="sig-name descname"><span class="pre">get_same_geom_and_stops_candidate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.get_same_geom_and_stops_candidate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_same_geom_candidate">
+<span class="sig-name descname"><span class="pre">get_same_geom_candidate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.get_same_geom_candidate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_trip">
+<span class="sig-name descname"><span class="pre">get_trip</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">25832</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.get_trip" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_trip_brunnels">
+<span class="sig-name descname"><span class="pre">get_trip_brunnels</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.get_trip_brunnels" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_trip_electrified">
+<span class="sig-name descname"><span class="pre">get_trip_electrified</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.get_trip_electrified" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_trip_elevation_profile">
+<span class="sig-name descname"><span class="pre">get_trip_elevation_profile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.get_trip_elevation_profile" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_trip_maxspeed">
+<span class="sig-name descname"><span class="pre">get_trip_maxspeed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.get_trip_maxspeed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_trip_osm">
+<span class="sig-name descname"><span class="pre">get_trip_osm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">25832</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.get_trip_osm" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_trip_shape">
+<span class="sig-name descname"><span class="pre">get_trip_shape</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">geopandas.geodataframe.GeoDataFrame</span></span></span><a class="headerlink" href="#util.sql.RailwayDatabase.get_trip_shape" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get shape id of trip</p>
+<blockquote>
+<div><blockquote>
+<div><dl class="simple">
+<dt>trip_id<span class="classifier">int</span></dt><dd><p>The id of the trip</p>
+</dd>
+<dt>crs</dt><dd><p>if given the geometry is converted to this crs</p>
+</dd>
+</dl>
+</div></blockquote>
+<blockquote>
+<div><dl class="simple">
+<dt>GeoDataFrame</dt><dd><p>A GeoDataFrame with 1 row and  columns “shape_id” and “geom”</p>
+</dd>
+</dl>
+</div></blockquote>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_trip_stops">
+<span class="sig-name descname"><span class="pre">get_trip_stops</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">pandas.core.frame.DataFrame</span><span class="p"><span class="pre">,</span> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">pandas.core.frame.DataFrame</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#util.sql.RailwayDatabase.get_trip_stops" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_trip_timetable">
+<span class="sig-name descname"><span class="pre">get_trip_timetable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_stop_duration</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">30.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">round_int</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pandas.core.frame.DataFrame</span></span></span><a class="headerlink" href="#util.sql.RailwayDatabase.get_trip_timetable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_trips_from_same_geom_and_stops_candidate">
+<span class="sig-name descname"><span class="pre">get_trips_from_same_geom_and_stops_candidate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">same_geom_and_stops_candidate</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.get_trips_from_same_geom_and_stops_candidate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get list of trips that belong to the given same_geom_and_stops_candidate.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>same_geom_and_stops_candidate</strong> – </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_trips_from_same_geom_candidate">
+<span class="sig-name descname"><span class="pre">get_trips_from_same_geom_candidate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">same_geom_candidate</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.get_trips_from_same_geom_candidate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_trips_from_station">
+<span class="sig-name descname"><span class="pre">get_trips_from_station</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">station_name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_id_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'same_geom_and_stops_candidate'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fuzzy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fuzzy_strength</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="headerlink" href="#util.sql.RailwayDatabase.get_trips_from_station" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns all trips that start at station “station_name”. Performs fuzzy search if fuzzy = True.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>station_name</strong> – </p></li>
+<li><p><strong>fuzzy</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_trips_from_to">
+<span class="sig-name descname"><span class="pre">get_trips_from_to</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">from_station</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to_station</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_id_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'same_geom_and_stops_candidate'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fuzzy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fuzzy_strength</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_return_trips</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.get_trips_from_to" title="Permalink to this definition">¶</a></dt>
+<dd><p>get trips that start at from_station and end at to_station.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>from_station</strong> – </p></li>
+<li><p><strong>to_station</strong> – </p></li>
+<li><p><strong>return_id_type</strong> – either ‘all’, ‘same_geom_candidate’ or ‘same_geom_and_stops_candidate’</p></li>
+<li><p><strong>fuzzy</strong> – </p></li>
+<li><p><strong>fuzzy_strength</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.get_trips_to_station">
+<span class="sig-name descname"><span class="pre">get_trips_to_station</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">station_name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_id_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'same_geom_and_stops_candidate'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fuzzy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fuzzy_strength</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="headerlink" href="#util.sql.RailwayDatabase.get_trips_to_station" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns all trips that end at station “station_name”. Performs fuzzy search if fuzzy = True.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>station_name</strong> – </p></li>
+<li><p><strong>fuzzy</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.save_trip_elevation_table">
+<span class="sig-name descname"><span class="pre">save_trip_elevation_table</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dem</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">brunnels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">replace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_id_is_candidate_trip_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">first_sample_distance</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interpolated</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">ele_pipeline_kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.save_trip_elevation_table" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.sql.RailwayDatabase.save_trip_osm_tables">
+<span class="sig-name descname"><span class="pre">save_trip_osm_tables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">25832</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">replace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_id_is_candidate_trip_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_trip_length</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">500000.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">brunnel_filter_length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">set_unknown_electrified_to_no</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">get_osm_kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.sql.RailwayDatabase.save_trip_osm_tables" title="Permalink to this definition">¶</a></dt>
+<dd><p>calculates the osm properties for the trip and saves them into the database.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>trip_id</strong> – </p></li>
+<li><p><strong>crs</strong> (<em>int</em><em> or </em><em>pyproj CRS object</em>) – Must be a projected crs (unit meters). The osm_data and trip geom are converted to this crs. Is used only
+internally, since this function does not save geo data, but the accuracy of the distance calculations depend
+on this.</p></li>
+<li><p><strong>replace</strong> (<em>bool</em>) – <dl class="simple">
+<dt>if True’, then replaces the trips in the database on conflict. else an</dt><dd><p>error is raised if trip already exists and the values are not added. default True</p>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>trip_id_is_candidate_trip_id</strong> (<em>bool</em>) – if False then the candidate trip_id is looked up first. If True it is assumed that trip_id is candidate
+trip_id and no lookup is performed. candidate trips are trips with the same geometry</p></li>
+<li><p><strong>max_trip_length</strong> (<em>float</em>) – ignore trips longer than this. returns trip_id if longer.</p></li>
+<li><p><strong>brunnel_filter_length</strong> – parameter of <code class="xref py py-func docutils literal notranslate"><span class="pre">get_osm_prop()</span></code></p></li>
+<li><p><strong>set_unknown_electrified_to_no</strong> (<em>bool</em>) – </p></li>
+<li><p><strong>get_osm_kwargs</strong> – parameters of <code class="xref py py-func docutils literal notranslate"><span class="pre">sql_get_osm_from_line()</span></code></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>0 if success else trip_id</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-util.tpt">
+<span id="util-tpt-module"></span><h2>util.tpt module<a class="headerlink" href="#module-util.tpt" title="Permalink to this headline">¶</a></h2>
+<p>functions for creating the inputsheets, and functions for calculating “umläufe”
+functions for reading the TPT outputs</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="util.tpt.add_inputs_to_simulation_results">
+<span class="sig-prename descclassname"><span class="pre">util.tpt.</span></span><span class="sig-name descname"><span class="pre">add_inputs_to_simulation_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tpt_df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elevation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxspeed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">electrified</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.tpt.add_inputs_to_simulation_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.tpt.calc_end_dists">
+<span class="sig-prename descclassname"><span class="pre">util.tpt.</span></span><span class="sig-name descname"><span class="pre">calc_end_dists</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_dists</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_length</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">numpy.ndarray</span></span></span><a class="headerlink" href="#util.tpt.calc_end_dists" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>start_dists</strong> (<em>1d numpy array of floats</em>) – </p></li>
+<li><p><strong>trip_length</strong> (<em>float</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The end distances</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>1d numpy array of floats</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.tpt.create_umlauf">
+<span class="sig-prename descclassname"><span class="pre">util.tpt.</span></span><span class="sig-name descname"><span class="pre">create_umlauf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parameter_df</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_count</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameter_column</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_dists_column</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'start_dist'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_dists_column</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'end_dist'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">flip_first</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">drop_dups</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.tpt.create_umlauf" title="Permalink to this definition">¶</a></dt>
+<dd><p>For the given distances and parameter arrays returns the computed “umlauf” arrays.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>parameter_df</strong> (<em>pandas dataframe</em>) – with parameter_column, start_dists_column and end_dists_column</p></li>
+<li><p><strong>trip_count</strong> (<em>int</em>) – </p></li>
+<li><p><strong>parameter_column</strong> (<em>str</em>) – </p></li>
+<li><p><strong>start_dists_column</strong> (<em>str</em>) – </p></li>
+<li><p><strong>end_dists_column</strong> (<em>str</em>) – </p></li>
+<li><p><strong>flip_first</strong> (<em>bool</em>) – </p></li>
+<li><p><strong>drop_dups</strong> (<em>bool</em>) – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The computed umlauf. Dataframe with start_dists_column and parameter columns.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>pandas DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.tpt.elevation_pipeline">
+<span class="sig-prename descclassname"><span class="pre">util.tpt.</span></span><span class="sig-name descname"><span class="pre">elevation_pipeline</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">elevation_profile</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">ElevationSampler.core.ElevationProfile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">brunnels</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">first_sample_distance</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_sample_distance</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">100.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resample</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resample_distance</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">300.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">construct_brunnels</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_brunnel_length</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">300.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">construct_brunnel_thresh</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">diff_kernel_dist</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smooth_1</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smooth_window_size_1</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">31</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">poly_order_1</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smooth_2</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smooth_window_size_2</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">11</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">poly_order_2</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'nearest'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">minimum</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">minimum_loops</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variance</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">adjust_window_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">12</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">std_thresh</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sub_factor</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">clip</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_ele</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">-</span> <span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_ele</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">2962.0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ElevationSampler.core.ElevationProfile</span></span></span><a class="headerlink" href="#util.tpt.elevation_pipeline" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.tpt.flip_trip">
+<span class="sig-prename descclassname"><span class="pre">util.tpt.</span></span><span class="sig-name descname"><span class="pre">flip_trip</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_dists</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_dists</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameter</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">invert_para</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">,</span> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">,</span> </span><span class="pre">numpy.ndarray</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#util.tpt.flip_trip" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the distances and parameter from the other direction.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>start_dists</strong> (<em>Numpy Array</em>) – </p></li>
+<li><p><strong>end_dists</strong> (<em>Numpy Array</em>) – </p></li>
+<li><p><strong>parameter</strong> (<em>Numpy Array</em>) – </p></li>
+<li><p><strong>invert_para</strong> (<em>bool</em>) – Take parameter * -1</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The flipped distances and parameter</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Numpy Array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.tpt.read_tpt_input_sheet">
+<span class="sig-prename descclassname"><span class="pre">util.tpt.</span></span><span class="sig-name descname"><span class="pre">read_tpt_input_sheet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">pandas.core.frame.DataFrame</span><span class="p"><span class="pre">,</span> </span><span class="pre">pandas.core.frame.DataFrame</span><span class="p"><span class="pre">,</span> </span><span class="pre">pandas.core.frame.DataFrame</span><span class="p"><span class="pre">,</span> </span><span class="pre">pandas.core.frame.DataFrame</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#util.tpt.read_tpt_input_sheet" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read TPT input file. Return electrified, maxspeed, timetable, elevation dataframes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>file</strong> – </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>electrified, maxspeed, timetable, elevation dataframes</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.tpt.read_tpt_output_sheet">
+<span class="sig-prename descclassname"><span class="pre">util.tpt.</span></span><span class="sig-name descname"><span class="pre">read_tpt_output_sheet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.tpt.read_tpt_output_sheet" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.tpt.resample_simulation_results">
+<span class="sig-prename descclassname"><span class="pre">util.tpt.</span></span><span class="sig-name descname"><span class="pre">resample_simulation_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tpt_df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.tpt.resample_simulation_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.tpt.trip_title_to_filename">
+<span class="sig-prename descclassname"><span class="pre">util.tpt.</span></span><span class="sig-name descname"><span class="pre">trip_title_to_filename</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#util.tpt.trip_title_to_filename" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.tpt.write_sensor_input_sheet">
+<span class="sig-prename descclassname"><span class="pre">util.tpt.</span></span><span class="sig-name descname"><span class="pre">write_sensor_input_sheet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_title</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timetable</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">electrified</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxspeed</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inclination</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">folder</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#util.tpt.write_sensor_input_sheet" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>trip_title</strong> – </p></li>
+<li><p><strong>timetable</strong> – </p></li>
+<li><p><strong>electrified</strong> – </p></li>
+<li><p><strong>maxspeed</strong> – </p></li>
+<li><p><strong>inclination</strong> – </p></li>
+<li><p><strong>params</strong> (<em>dict</em>) – sheet1 : “Timetable and limits”,
+sheet2 : “Gradients and curves”,
+sheet3 : “TPT requirements”,
+accelerationLimits : 1.2
+decelerationLimits : 0.9
+gravity_acceleration : 9.81
+time_overhead : 0.05
+gradient_interpolation_binary : 0
+effort_in_curve : 8
+resistances_kp : “normal”</p></li>
+<li><p><strong>folder</strong> (<em>str</em>) – the output folder</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.tpt.write_tpt_input_sheet">
+<span class="sig-prename descclassname"><span class="pre">util.tpt.</span></span><span class="sig-name descname"><span class="pre">write_tpt_input_sheet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">template_file</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_title</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timetable</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">electrified</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxspeed</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inclination</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">folder</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#util.tpt.write_tpt_input_sheet" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>template_file</strong> (<em>str</em>) – the path to a tpt template .xlsx file
+in the template the rows must be cleared (see example template file in this module)</p></li>
+<li><p><strong>trip_title</strong> – </p></li>
+<li><p><strong>timetable</strong> – </p></li>
+<li><p><strong>electrified</strong> – </p></li>
+<li><p><strong>maxspeed</strong> – </p></li>
+<li><p><strong>inclination</strong> – </p></li>
+<li><p><strong>folder</strong> (<em>str</em>) – the output folder</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-util.trip">
+<span id="util-trip-module"></span><h2>util.trip module<a class="headerlink" href="#module-util.trip" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="util.trip.Trip">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">util.trip.</span></span><span class="sig-name descname"><span class="pre">Trip</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">electrified</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxspeed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">brunnels</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timetable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elevation_profile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_geom</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.trip.Trip" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>collection of data that belongs to a trip + functions on the data</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="util.trip.Trip.add_simulation_results">
+<span class="sig-name descname"><span class="pre">add_simulation_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_sheet</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.trip.Trip.add_simulation_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.trip.Trip.get_elevation">
+<span class="sig-name descname"><span class="pre">get_elevation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">smoothed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.trip.Trip.get_elevation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.trip.Trip.get_power">
+<span class="sig-name descname"><span class="pre">get_power</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">delta_t</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.trip.Trip.get_power" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.trip.Trip.get_stations">
+<span class="sig-name descname"><span class="pre">get_stations</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#util.trip.Trip.get_stations" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>List of station names in order of arrival</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>List[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.trip.Trip.get_velocity">
+<span class="sig-name descname"><span class="pre">get_velocity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">delta_t</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.trip.Trip.get_velocity" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.trip.Trip.plot_map">
+<span class="sig-name descname"><span class="pre">plot_map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prop</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">folium.folium.Map</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#util.trip.Trip.plot_map" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a folium map with the trip.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>prop</strong> – The osm parameter to plot. Can be “maxspeed” or “electrified”.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Folium map</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>Map</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.trip.Trip.summary">
+<span class="sig-name descname"><span class="pre">summary</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#util.trip.Trip.summary" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.trip.Trip.summary_chart">
+<span class="sig-name descname"><span class="pre">summary_chart</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">save</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">folder</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_delay</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.trip.Trip.summary_chart" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>save</strong> – </p></li>
+<li><p><strong>filename</strong> – If none uses trip title as filename. must end with ‘.png’.</p></li>
+<li><p><strong>folder</strong> – If should save in sub-folder</p></li>
+<li><p><strong>show_delay</strong> – If the simulated delays should be plotted</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.trip.Trip.write_input_sheet">
+<span class="sig-name descname"><span class="pre">write_input_sheet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simulation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'tpt'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">template_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">folder</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">last_incl_thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.trip.Trip.write_input_sheet" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="util.trip.TripGenerator">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">util.trip.</span></span><span class="sig-name descname"><span class="pre">TripGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dem</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">ElevationSampler.core.DEM</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">db_connection</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">sqlalchemy.engine.base.Engine</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">first_sample_distance</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">brunnel_filter_length</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">10.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interpolated</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ele_pipeline_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">get_osm_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">25832</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.trip.TripGenerator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="util.trip.TripGenerator.generate">
+<span class="sig-name descname"><span class="pre">generate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_geom</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">osm_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timetable</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.trip.TripGenerator.generate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.trip.TripGenerator.generate_from_osm_db">
+<span class="sig-name descname"><span class="pre">generate_from_osm_db</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trip_geom</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">geopandas.geoseries.GeoSeries</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timetable</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.trip.TripGenerator.generate_from_osm_db" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use this if only OSM railway table is present. Calculates the Trip properties with the given trip_geom.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>trip_id</strong> – </p></li>
+<li><p><strong>trip_geom</strong> – </p></li>
+<li><p><strong>timetable</strong> – </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.trip.TripGenerator.generate_from_railway_db">
+<span class="sig-name descname"><span class="pre">generate_from_railway_db</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trip_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recalculate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#util.trip.Trip" title="util.trip.Trip"><span class="pre">util.trip.Trip</span></a></span></span><a class="headerlink" href="#util.trip.TripGenerator.generate_from_railway_db" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>trip_id</strong> – </p></li>
+<li><p><strong>recalculate</strong> – if True then trip is not loaded from database, but the properties are recalculated</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.trip.TripGenerator.generate_from_simulation_results">
+<span class="sig-name descname"><span class="pre">generate_from_simulation_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results_file</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.trip.TripGenerator.generate_from_simulation_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="util.trip.TripGenerator.generate_from_tpt_inputsheet">
+<span class="sig-name descname"><span class="pre">generate_from_tpt_inputsheet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inputsheet</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.trip.TripGenerator.generate_from_tpt_inputsheet" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.trip.clean_name">
+<span class="sig-prename descclassname"><span class="pre">util.trip.</span></span><span class="sig-name descname"><span class="pre">clean_name</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#util.trip.clean_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="util.trip.find_closest">
+<span class="sig-prename descclassname"><span class="pre">util.trip.</span></span><span class="sig-name descname"><span class="pre">find_closest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">pandas.core.frame.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">col_name</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">any</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">first_occurrence</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#util.trip.find_closest" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns the row in “df”, with the closest value to “value” in column “col_name”</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df</strong> – </p></li>
+<li><p><strong>col_name</strong> – </p></li>
+<li><p><strong>value</strong> – </p></li>
+<li><p><strong>first_occurrence</strong> – If True takes the first occurance of closest value, if False takes the last occurance of closest value.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-util">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-util" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Johannes Polster.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
