@@ -26,6 +26,41 @@ def elevation_pipeline(elevation_profile: ElevationProfile, brunnels: DataFrame,
                        minimum_loops: int = 1, variance: bool = True, adjust_window_size: int = 12,
                        std_thresh: float = 2., sub_factor: float = 5., clip: float = 20, min_ele: float = -3,
                        max_ele: float = 2962.) -> ElevationProfile:
+    """
+
+    Parameters
+    ----------
+    elevation_profile
+    brunnels
+    first_sample_distance
+    end_sample_distance
+    resample
+    resample_distance
+    construct_brunnels
+    max_brunnel_length
+    construct_brunnel_thresh
+    diff_kernel_dist
+    smooth_1
+    smooth_window_size_1
+    poly_order_1
+    smooth_2
+    smooth_window_size_2
+    poly_order_2
+    mode
+    minimum
+    minimum_loops
+    variance
+    adjust_window_size
+    std_thresh
+    sub_factor
+    clip
+    min_ele
+    max_ele
+
+    Returns
+    -------
+
+    """
 
     # filter unrealistic values
     keep = (elevation_profile.elevations > min_ele) & (elevation_profile.elevations < max_ele)
@@ -666,6 +701,22 @@ def add_inputs_to_simulation_results(tpt_df, elevation, maxspeed, electrified):
 
 
 def resample_simulation_results(tpt_df, t: Optional[int] = 10):
+    """
+    Resamples the simulation results.
+
+    Parameters
+    ----------
+    tpt_df : DataFrame
+        Dataframe as returned by read_tpt_output_sheet
+    t : int
+        seconds
+
+    Returns
+    -------
+        Dataframe:
+            The resampled tpt_df
+
+    """
     # mean: distance, acceleration, velocity, elevation
     # median: maxspeed, electrified
     # sum: force, power

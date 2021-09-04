@@ -19,7 +19,7 @@ if __name__ == '__main__':
         """
 
     # get missing candidates due to errors after first pass
-    sql = """
+    """
         select distinct ldb_trip_candidates.same_geom_and_stops_candidate from ldb_trip_candidates
         left join gtfs_trips_ax_bahnstrecke on ldb_trip_candidates.same_geom_and_stops_candidate = gtfs_trips_ax_bahnstrecke.same_geom_and_stops_candidate
         where gtfs_trips_ax_bahnstrecke.same_geom_and_stops_candidate is null;

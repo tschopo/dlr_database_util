@@ -319,6 +319,19 @@ class RailwayDatabase:
         return timetable[["dist", "stop_name", "stop_duration", "driving_time", "arrival_time", "departure_time"]]
 
     def get_trip_stops(self, trip_id: int) -> Union[DataFrame, Tuple[str, DataFrame]]:
+        """
+        Returns Dataframe of Stopname, stop_lat, stop_lon of the stops of a trip.
+
+        Parameters
+        ----------
+        trip_id : int
+            The Trip ID
+
+        Returns
+        -------
+            Dataframe
+
+        """
         sql = """
         select
         stop_name, stop_lat, stop_lon
@@ -337,7 +350,21 @@ class RailwayDatabase:
 
         return stops
 
-    def get_trip_osm(self, trip_id: int, crs=25832, **kwargs):
+    def get_trip_osm(self, trip_id: int, crs=25832, **kwargs) -> DataFrame:
+        """
+        Generates a Dataframe containing OSM Data for the trip_id.
+
+        Parameters
+        ----------
+        trip_id
+        crs
+        kwargs : dictionary
+            kwargs for sql_get_osm_from_line
+
+        Returns
+        -------
+            Dataframe : output of sql_get_osm_from_line
+        """
 
         # get shape from database
         shape: GeoDataFrame = self.get_trip_shape(trip_id, crs=crs)
@@ -570,7 +597,21 @@ class RailwayDatabase:
 
             return in_electrified and in_maxspeed and in_elevation
 
-    def get_trip(self, trip_id, crs=25832):
+    def get_trip(self, trip_id: int, crs=25832):
+        """
+        Get a Trip from the Database. Use TripGenerator if trip data is not yet in the Database.
+
+        Parameters
+        ----------
+        trip_id : int
+        crs : int or crs Object
+            default epsg 25832
+
+        Returns
+        -------
+
+        Trip : A Trip object if all the data for the trip is already generated. Raises Exception if nnot yet generated
+        """
         from .trip import Trip
 
         trip_id = int(trip_id)
@@ -598,8 +639,8 @@ class RailwayDatabase:
 
     def fix_osm(self, fix_geojson: str, prop: str, crs=25832):
         """
-        Fix osm data (in osm_railways) from geojson. The geojson contains the correct data. All osm features that intersect the geojson
-        are set to the prop in the geojson.
+        Fix osm data (in osm_railways) from geojson. The geojson contains the correct data. All osm features that
+        intersect the geojson are set to the prop in the geojson.
 
         Parameters
         ----------
@@ -633,19 +674,21 @@ class RailwayDatabase:
                     print("set ", str(osm_row.way_id), " to ", fix_row[prop])
                     con.execute(text(sql), {'way_id': osm_row.way_id, 'prop_val': fix_row[prop]})
 
-    def calculate_n_fahrten_in_period(self, trip_id, period_start):
+    def calculate_n_fahrten_in_period(self, trip_id: int, period_start: int) -> int:
         """
-        Calculates the number of times a trip drives in the 1 weak period from period_start.
+        Calculates the number of times a trip drives in the 1 week period from period_start.
         Period must start on monday.
 
         Parameters
         ----------
         trip_id
-        period_start
+        period_start : int
+            Format YYYYMMDD e.g. 20201109
 
         Returns
         -------
 
+        Number of times a trip drives.
         """
 
         weekdays = {0: "monday",

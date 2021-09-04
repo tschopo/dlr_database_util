@@ -366,6 +366,9 @@ class Trip:
 
 
 class TripGenerator:
+    """
+    TODO: Umschreiben, ist nicht mehr intuitiv.
+    """
 
     def __init__(self, dem: Optional[DEM] = None, db_connection: Optional[Engine] = None, first_sample_distance: float = 10.0,
                  brunnel_filter_length: float = 10., interpolated: bool = True, ele_pipeline_kwargs=None,
@@ -408,6 +411,7 @@ class TripGenerator:
 
     def generate_from_railway_db(self, trip_id, recalculate=False) -> Trip:
         """
+        Use RailwayDatabase.get_trip() Interface if Trips are allready calculated.
 
         Parameters
         ----------

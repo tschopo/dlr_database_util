@@ -961,7 +961,7 @@ def spatial_median(vals, lengths):
 
     Returns
     -------
-
+        float
     """
 
     if len(vals) != len(lengths):
